@@ -15,6 +15,10 @@ Import numFieldNormedType.Exports.
 
 Import Num.Def Num.Theory.
 
+(* From Coq Require Import Reals. *)
+From mathcomp Require Import ring.
+From mathcomp Require Import lra.
+
 Local Open Scope ring_scope.
 Local Open Scope classical_set_scope.
 
@@ -27,10 +31,10 @@ Context (ab: a < b). *)
 (* {in `[a, b], forall x, P x} *)
 Context (F_Derivable: forall (n:nat) (x: R), derivable (derive1n n f) x 1).
 (* Analytic *)
-Definition Analytic_C_Prop (a b C: R):= 
+Definition Analytic_C_Exists (a b C: R):= 
     forall (k: nat), {in `[a, b], forall x, `|f^`(k) x| <= C^+k.+1 * k`!%:R}.
 
-Context (F_Analytic3: forall (a b: R), exists C: R, Analytic_C_Prop a b C).
+Context (F_Analytic3: forall (a b: R), exists C: R, Analytic_C_Exists a b C).
 
 (* term_nth n x a := f'(n) (a) / n! * ( x - a )^n *)
 Definition term_nth (n: nat) (x: R) : R->R :=
@@ -360,27 +364,34 @@ Lemma cvg_nxn: forall (x: R), `|x| < 1 -> (nxn_sequence x) @\oo --> 0.
     move=> xlt1.
     pose q := (`|x| + 1)/2.
     pose t := `|x| / q.
+    have XNge0: `|x| >= 0.
+        admit.
     have q_ge0: q > 0.
         rewrite /q.
-        rewrite -(mul0r 2^-1).
-        Search "div" "ltr".
-        rewrite ltr_pdivrMr //=.
+        (* set XN:= `|x|. *)
+        lra.
+        (* rewrite -(mul0r 2^-1). *)
+        (* Search "div" "ltr". *)
+        (* rewrite ltr_pdivrMr //=. *)
 
     have q_lt1: `|q| < 1.
         rewrite /q.
         rewrite normrM.
         rewrite ger0_norm //=.
         rewrite [`|2^-1|]ger0_norm //=.
-        Search "ltr" "div".
+        lra.
+
+        (* Search "ltr" "div".
         rewrite ltr_pdivrMr //=.
         rewrite mul1r.
         Search "ltr" "B".
         rewrite -ltrBrDr //=.
         rewrite addrK.
-        apply: xlt1.
+        apply: xlt1. *)
     have t_range0: 0 <= t.
         (* 0 <= t *)
         rewrite /t.
+        lra.
         Check ler_wpM2r.
         rewrite -(mulr0 `|x|).
         apply: ler_wpM2l.
@@ -408,6 +419,10 @@ Lemma cvg_nxn: forall (x: R), `|x| < 1 -> (nxn_sequence x) @\oo --> 0.
     pose C: R:= 1 / ( 1 - t ).
     pose X_n := fun (n: nat) => C * q^+n.
 
+    (* -X_n <= n * x^n <= X_n 
+       X_n = C * q^n *)
+
+    (* for squeeze theorem *)
     have X_cvgr : X_n @\oo --> 0.
         rewrite /X_n.
         rewrite -(mulr0 C).
@@ -422,6 +437,7 @@ Lemma cvg_nxn: forall (x: R), `|x| < 1 -> (nxn_sequence x) @\oo --> 0.
         apply: cvgN.
         apply: X_cvgr.
 
+    (* n * t^n <= 1 + t + t2 + ... t^{n-1} *)
     have t_le0: forall n: nat, t ^+n *+ n <= \sum_(i < n) t ^+ i.
         move=> n.
         elim: n.
@@ -454,6 +470,7 @@ Lemma cvg_nxn: forall (x: R), `|x| < 1 -> (nxn_sequence x) @\oo --> 0.
         rewrite lerD2r.
         apply: IH.
 
+    (* forall n, \sum t^i <= 1/(1-t) *)
     have t_le1: forall n: nat, \sum_(i < n) t^+i <= 1 / (1 - t).
         have t_sum_eq: forall n, (\sum_(i < n) t^+i)*(1 - t) = 1 - t^+n.
             move=> n.
@@ -579,17 +596,21 @@ Qed.
 
 
 Theorem taylor_theorem (a x: R) :
-    forall C: R, Analytic_C_Prop (minr x a) (maxr x a) C 
+    (* exists radius: R , *)
+    forall C: R, Analytic_C_Exists (minr x a) (maxr x a) C 
+        (* radius > 0 *)
         -> C * `|x - a| < 1
         -> (fun n => f x - \sum_(i < n.+1) term_nth i x a) @\oo --> 0.
 Proof.
     pose range_min := minr x a.
     pose range_max := maxr x a.
 
+    (* exist 1/C *)
+
     move=> C.
-    rewrite /Analytic_C_Prop.
+    rewrite /Analytic_C_Exists.
     move=> H_C.
-    move=> radius.
+    move=> xa_radius.
 
     Check choice.
     have [xi_n H_xi]:=
@@ -638,8 +659,10 @@ Proof.
         apply: le_trans.
         apply: normr_ge0.
 
-    have X_cvgr : X_n @\oo --> 0.
+    Check series.
+    About series.
 
+    have X_cvgr : X_n @\oo --> 0.
         rewrite (_: X_n = fun (n: nat) => C * [sequence (nxn_sequence (C * `|x-a|)) (n.+1)]_n n).
             rewrite /X_n.
             apply: eq_fun.
@@ -662,7 +685,7 @@ Proof.
         apply: C_ge0.
         rewrite ger0_norm.
         apply: normr_ge0.
-        apply: radius.
+        apply: xa_radius.
 
     have XN_cvgr : -X_n @\oo --> 0.
         Search "cvg" "-".
@@ -683,7 +706,7 @@ Proof.
         have LE0: F / N * XXI^+n * XA <= `|F| * `|N^-1| * `|XXI^+n| * `|XA|.
             rewrite -!normrM.
             apply: ler_norm.
-        
+
         have LE1: `|F| * `|N^-1| * `|XXI^+n| * `|XA| <= C^+(n+2) * (n+1)%:R * `|XXI^+n| * `|XA|.
             apply: ler_wpM2r.
             apply: normr_ge0.
