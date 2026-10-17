@@ -16,8 +16,8 @@ Import numFieldNormedType.Exports.
 Import Num.Def Num.Theory.
 
 (* From Coq Require Import Reals. *)
+From mathcomp Require Import arithmetic_tactic.
 From mathcomp Require Import ring.
-From mathcomp Require Import lra.
 
 Local Open Scope ring_scope.
 Local Open Scope classical_set_scope.
@@ -361,154 +361,119 @@ Definition nxn_sequence := fun (x: R) (n:nat) => n%:R * x^+n.
 
 Lemma cvg_nxn: forall (x: R), `|x| < 1 -> (nxn_sequence x) @\oo --> 0.
     move=> x.
-    move=> xlt1.
+    move=> x_lt1.
     pose q := (`|x| + 1)/2.
     pose t := `|x| / q.
-    have XNge0: `|x| >= 0.
-        admit.
-    have q_ge0: q > 0.
+
+    have xnorm_ge0: `|x| >= 0.
+        by apply: normr_ge0.
+
+    have q_gt0: q > 0.
         rewrite /q.
-        (* set XN:= `|x|. *)
-        lra.
-        (* rewrite -(mul0r 2^-1). *)
-        (* Search "div" "ltr". *)
-        (* rewrite ltr_pdivrMr //=. *)
+        by lra.
 
-    have q_lt1: `|q| < 1.
+    have q_gx: q > `|x|.
         rewrite /q.
-        rewrite normrM.
-        rewrite ger0_norm //=.
-        rewrite [`|2^-1|]ger0_norm //=.
-        lra.
+        by lra.
 
-        (* Search "ltr" "div".
-        rewrite ltr_pdivrMr //=.
-        rewrite mul1r.
-        Search "ltr" "B".
-        rewrite -ltrBrDr //=.
-        rewrite addrK.
-        apply: xlt1. *)
-    have t_range0: 0 <= t.
-        (* 0 <= t *)
-        rewrite /t.
-        lra.
-        Check ler_wpM2r.
-        rewrite -(mulr0 `|x|).
-        apply: ler_wpM2l.
-        apply: normr_ge0.
-        Search "ler" (_^-1).
-        Search (_ < _^-1).
-        apply: ltW.
-        rewrite invr_gt0 //=.
+    have q_lt1: q < 1.
+        rewrite /q.
+        by lra.
 
-    have t_range1: t < 1.
-        (* t < 1 *)
+    have t_ge0: t >= 0.
         rewrite /t.
-        Search "ltr" "pM".
-        Search "ltr" "div".
+        rewrite ler_pdivlMr.
+            by exact q_gt0.
+        by lra.
+
+    have t_lt1: t < 1.
+        rewrite /t.
         rewrite ltr_pdivrMr.
-        apply: q_ge0.
-        rewrite mul1r.
-        rewrite /q.
-        Check ltr_pdivlMr.
-        rewrite ltr_pdivlMr //=.
-        rewrite mulr_natr.
-        rewrite ltrD2l.
-        apply: xlt1.
+            by exact q_gt0.
+        by lra.
+
+    have tn_ge0: forall (n:nat), t^+n >= 0.
+        move=> n.
+        apply: exprn_ge0.
+        by exact: t_ge0.
+
+    (* have tn_lt1: forall (n:nat), t^+n < 1.
+        move=> n.
+        Search (_^+_ < _).
+        rewrite exprn_lt1. *)
 
     pose C: R:= 1 / ( 1 - t ).
     pose X_n := fun (n: nat) => C * q^+n.
 
-    (* -X_n <= n * x^n <= X_n 
-       X_n = C * q^n *)
+    (* 
+        squeeze theorem
+       -X_n <= n * x^n <= X_n 
+       X_n = C * q^n 
+    *)
 
-    (* for squeeze theorem *)
     have X_cvgr : X_n @\oo --> 0.
         rewrite /X_n.
         rewrite -(mulr0 C).
-        Search "cvg" "M".
         apply: cvgMl_tmp.
-        Search "cvg" "exp".
         apply: cvg_expr.
-        apply: q_lt1.
+        rewrite ger0_norm.
+        lra.
+        lra.
 
     have XN_cvgr : -X_n @\oo --> 0.
         rewrite -oppr0.
         apply: cvgN.
-        apply: X_cvgr.
+        by apply: X_cvgr.
 
-    (* n * t^n <= 1 + t + t2 + ... t^{n-1} *)
-    have t_le0: forall n: nat, t ^+n *+ n <= \sum_(i < n) t ^+ i.
+    have ntn_le_sum: forall n: nat, t ^+n *+ n <= \sum_(i < n) t ^+ i.
         move=> n.
         elim: n.
 
         (* n = 0 *)
-        Search (_ *+ _).
         rewrite mulr0n.
-        Search "big" "ord" "0".
         rewrite big_ord0 //=.
 
         (* n = Sn' *)
-        move=> n.
-        move=> IH.
+        move=> n IH.
 
         apply: le_trans.
         apply: (_: t^+n.+1 *+ n.+1 <= t^+n *+ (n.+1)).
-            Search "ler" "p" "M" "*+".
             rewrite ler_pMn2r //=.
-            Search "exp" "S".
             rewrite exprS.
             rewrite -{2}[t^+n]mul1r.
             rewrite ler_wpM2r //=.
-            Search "ge" "exp" "0".
-            apply: exprn_ge0.
-            apply: t_range0.
+            by lra.
 
-        apply: ltW t_range1.
         rewrite big_ord_recr //=.
         rewrite mulrSr.
         rewrite lerD2r.
-        apply: IH.
+        by exact: IH.
 
     (* forall n, \sum t^i <= 1/(1-t) *)
-    have t_le1: forall n: nat, \sum_(i < n) t^+i <= 1 / (1 - t).
+    have t_sum_le_infinity_sum: forall n: nat, \sum_(i < n) t^+i <= 1 / (1 - t).
         have t_sum_eq: forall n, (\sum_(i < n) t^+i)*(1 - t) = 1 - t^+n.
             move=> n.
             elim: n.
 
+            (* n = 0 *)
             rewrite big_ord0.
-            rewrite mul0r.
-            rewrite expr0.
-            rewrite subrr.
-            exact.
+            field.
 
+            (* n = Sn' *)
             move=> n IH.
             rewrite big_ord_recr //=.
             rewrite mulrDl.
             rewrite IH.
-            Search (_ * (_ - _)).
-            rewrite mulrBr.
-            rewrite addrA.
-            rewrite mulr1.
-            Search (_ + _ = _ + _).
-            Search "sub" "K".
-            rewrite subrK.
             rewrite exprSr.
-            exact.
-            Check addIr.
+            by field.
 
         move=> n.
         rewrite ler_pdivlMr.
-        rewrite ltrBrDr.
-        rewrite add0r.
-        apply: t_range1.
+        lra.
         rewrite t_sum_eq.
-        Search "ler" "B".
         rewrite lerBlDr.
-        Search (_ <= _ + _).
         rewrite lerDl.
-        apply: exprn_ge0.
-        apply: t_range0.
+        by apply: tn_ge0.
 
     have F_range : forall n: nat, -X_n n <= nxn_sequence x n <= X_n n.
         move=> n.
@@ -534,7 +499,7 @@ Lemma cvg_nxn: forall (x: R), `|x| < 1 -> (nxn_sequence x) @\oo --> 0.
             rewrite unitfE //=.
             Search (_ < _ -> _ != _).
             apply: lt0r_neq0.
-            apply: q_ge0.
+            apply: q_gt0.
             rewrite mulr1.
 
             Search "norm" "X".
@@ -544,16 +509,15 @@ Lemma cvg_nxn: forall (x: R), `|x| < 1 -> (nxn_sequence x) @\oo --> 0.
         have LE2: `|n%:R| * t^+n * q^+n <= C * q^+n.
             apply: ler_wpM2r.
             apply: exprn_ge0.
-            apply: ltW.
-            apply: q_ge0.
+            lra.
 
             rewrite ger0_norm //=.
             Search "mulr" "nat".
             rewrite mulr_natl.
             apply: le_trans.
-            apply: t_le0.
+            apply: ntn_le_sum.
             rewrite /C.
-            apply: t_le1.
+            by exact: t_sum_le_infinity_sum.
 
         have LE3: -(`|n%:R| * `|x^+n|) <= nxn_sequence x n.
             rewrite -!normrM.
