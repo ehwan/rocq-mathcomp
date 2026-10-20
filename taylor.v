@@ -16,11 +16,11 @@ Import numFieldNormedType.Exports.
 Import Num.Def Num.Theory.
 
 (* From Coq Require Import Reals. *)
-From mathcomp Require Import arithmetic_tactic.
-From mathcomp Require Import ring.
+From mathcomp Require Import ring lra field arithmetic_tactic.
 
 Local Open Scope ring_scope.
 Local Open Scope classical_set_scope.
+
 
 Section taylor.
 Context (R: realType).
@@ -31,10 +31,8 @@ Context (ab: a < b). *)
 (* {in `[a, b], forall x, P x} *)
 Context (F_Derivable: forall (n:nat) (x: R), derivable (derive1n n f) x 1).
 (* Analytic *)
-Definition Analytic_C_Exists (a b C: R):= 
-    forall (k: nat), {in `[a, b], forall x, `|f^`(k) x| <= C^+k.+1 * k`!%:R}.
 
-Context (F_Analytic3: forall (a b: R), exists C: R, Analytic_C_Exists a b C).
+Context (F_Analytic3: forall (a b: R), exists C: R, forall (k: nat), {in `[a, b], forall x, `|f^`(k) x| <= C^+k.+1 * k`!%:R}).
 
 (* term_nth n x a := f'(n) (a) / n! * ( x - a )^n *)
 Definition term_nth (n: nat) (x: R) : R->R :=
@@ -558,40 +556,19 @@ Lemma cvg_nxn: forall (x: R), `|x| < 1 -> (nxn_sequence x) @\oo --> 0.
 Qed.
 
 
-
 Theorem taylor_theorem (a x: R) :
-    (* exists radius: R , *)
-    forall C: R, Analytic_C_Exists (minr x a) (maxr x a) C 
-        (* radius > 0 *)
-        -> C * `|x - a| < 1
+    exists invRadius: R ,
+        `|x - a|*invRadius < 1 
         -> (fun n => f x - \sum_(i < n.+1) term_nth i x a) @\oo --> 0.
 Proof.
     pose range_min := minr x a.
     pose range_max := maxr x a.
 
-    (* exist 1/C *)
+    have [C H_C] := F_Analytic3 range_min range_max.
 
-    move=> C.
-    rewrite /Analytic_C_Exists.
-    move=> H_C.
+    exists C.
+    rewrite mulrC.
     move=> xa_radius.
-
-    Check choice.
-    have [xi_n H_xi]:=
-        @choice nat R
-            _
-            (fun n => remainder_eq n x a).
-
-    pose remainder_xi := fun n => (f^`(n+1) (xi_n n)) * n`!%:R^-1 * (x - (xi_n n))^+n * (x - a).
-    rewrite (_: (fun n => f x - \sum_(i < n.+1) term_nth i x a) = remainder_xi).
-        rewrite /remainder_xi.
-        apply eq_fun.
-        move=> n.
-        case: (H_xi n) => [H_xi_ _].
-        exact H_xi_.
-
-    pose X_n := fun n: nat =>  C * (n+1)%:R * (C* `|(x-a)|)^+(n+1).
-    Search "cvg".
 
     have C_ge0: 0 <= C.
         have min_in_range: range_min \in `[range_min, range_max].
@@ -623,8 +600,20 @@ Proof.
         apply: le_trans.
         apply: normr_ge0.
 
-    Check series.
-    About series.
+    have [xi_n H_xi_n]:=
+        @choice nat R
+            _
+            (fun n => remainder_eq n x a).
+
+    pose remainder_xi := fun n => (f^`(n+1) (xi_n n)) * n`!%:R^-1 * (x - (xi_n n))^+n * (x - a).
+    rewrite (_: (fun n => f x - \sum_(i < n.+1) term_nth i x a) = remainder_xi).
+        rewrite /remainder_xi.
+        apply eq_fun.
+        move=> n.
+        case: (H_xi_n n) => [H_xi_ _].
+        exact H_xi_.
+
+    pose X_n := fun n: nat =>  C * (n+1)%:R * (C* `|(x-a)|)^+(n+1).
 
     have X_cvgr : X_n @\oo --> 0.
         rewrite (_: X_n = fun (n: nat) => C * [sequence (nxn_sequence (C * `|x-a|)) (n.+1)]_n n).
@@ -637,14 +626,10 @@ Proof.
             exact.
 
         rewrite -(mulr0 C).
-        Search "cvg" "M".
         apply: cvgMl_tmp.
-        Search "cvg" "shift".
         rewrite cvg_shiftS //=.
         apply: cvg_nxn.
         rewrite normrM.
-        Search (_ = `|_|).
-        Search (0 <= _ -> `|_| = _).
         rewrite ger0_norm.
         apply: C_ge0.
         rewrite ger0_norm.
@@ -660,7 +645,7 @@ Proof.
 
     have F_range : forall n: nat, -X_n n <= remainder_xi n <= X_n n.
         move=> n.
-        case: (H_xi n) => [_ xi_in_range].
+        case: (H_xi_n n) => [_ xi_in_range].
 
         set F := f^`(n+1) (xi_n n).
         set XXI := (x - xi_n n).
