@@ -574,8 +574,9 @@ Qed.
 
 
 Theorem taylor_theorem (a x: R) :
-    exists invRadius: R ,
-        `|x - a|*invRadius < 1 
+    exists Radius: R ,
+        Radius > 0 ->
+        `|x - a| < Radius
         -> (fun n => f x - \sum_(i < n.+1) term_nth i x a) @\oo --> 0.
 Proof.
     pose range_min := minr x a.
@@ -583,39 +584,15 @@ Proof.
 
     have [C H_C] := F_Analytic3 range_min range_max.
 
-    exists C.
+    pose Radius:= 1 / C.
+    exists Radius.
+    rewrite /Radius.
+    rewrite div1r invr_gt0.
+    move=> C_GT0.
+    rewrite -div1r ltr_pdivlMr.
+    exact C_GT0.
     rewrite mulrC.
     move=> xa_radius.
-
-    have C_ge0: 0 <= C.
-        have min_in_range: range_min \in `[range_min, range_max].
-            rewrite inE /=.
-            rewrite in_itv /=.
-            apply /andP.
-            split.
-
-            exact.
-
-            rewrite /range_min /range_max.
-            rewrite /minr /maxr.
-            case: ifP.
-            apply: ltW.
-            Search (_ = false).
-            Search( (_ < _) = false).
-            Check leNgt.
-            rewrite leNgt.
-            move=> H.
-            rewrite H //=.
-
-        have H_C0:= H_C 0 range_min min_in_range.
-        move: H_C0.
-        rewrite -addn1.
-        rewrite add0n.
-        rewrite fact0.
-        rewrite mulr1.
-        rewrite expr1.
-        apply: le_trans.
-        apply: normr_ge0.
 
     have [xi_n H_xi_n]:=
         @choice nat R
@@ -648,7 +625,7 @@ Proof.
         apply: cvg_nxn.
         rewrite normrM.
         rewrite ger0_norm.
-        apply: C_ge0.
+        rewrite ltW //=.
         rewrite ger0_norm.
         apply: normr_ge0.
         apply: xa_radius.
@@ -721,7 +698,7 @@ Proof.
             rewrite exprS.
             rewrite -!mulrA.
             apply: ler_wpM2l.
-            apply: C_ge0.
+            rewrite ltW //=.
             rewrite mulrA.
             rewrite -[C ^+ n.+1 * n.+1%:R]mulrC.
             rewrite -mulrA.
@@ -729,20 +706,14 @@ Proof.
             rewrite ler0n //=.
 
             (*  (C * `|XA|) ^+ n.+1 *)
-            Search ((_*_)^+_).
             rewrite exprMn.
             apply: ler_wpM2l.
-            Search "le" "exp".
-            Search (0<=_ -> 0<=_^+_).
             apply: exprn_ge0.
-            apply: C_ge0.
+            rewrite ltW //=.
             rewrite exprSr.
             apply: ler_wpM2r.
             apply: normr_ge0.
-            Search (`|_^+_| = `|_|^+_).
             rewrite normrX.
-            Search (_^+?x <= _^+?x).
-            Search "ler" "X".
             apply: lerXn2r.
             apply: normr_ge0.
             apply: normr_ge0.
@@ -761,7 +732,6 @@ Proof.
                 rewrite lerBrDr add0r.
                 exact xix.
                 rewrite lerD //=.
-                Search "ler" "N".
                 rewrite lerNr opprK.
                 exact axi.
 
@@ -773,10 +743,8 @@ Proof.
                 move=> /andP [axi xix].
                 rewrite /XXI.
                 rewrite ler0_norm.
-                Search "ltr" "D".
                 rewrite lerBlDl addr0.
                 exact axi.
-                Search (-(_ - _)).
                 rewrite opprB.
                 rewrite lerD //=.
 
@@ -786,7 +754,6 @@ Proof.
             exact.
 
         have LE4: -(C^+(n+2) * (n+1)%:R * `|XXI^+n| * `|XA|) <= -(`|F| * `|N^-1| * `|XXI^+n| * `|XA|).
-            Search "ler" "N".
             rewrite lerN2.
             apply: LE1.
 
