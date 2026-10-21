@@ -555,6 +555,23 @@ Lemma cvg_nxn: forall (x: R), `|x| < 1 -> (nxn_sequence x) @\oo --> 0.
     apply: X_cvgr.
 Qed.
 
+Lemma in_itv_inequality (a b x: R):
+    x \in `[a, b]%R -> 0 <= x - a <= b - a /\ 0 <= b - x <= b - a.
+Proof.
+    rewrite in_itv //=.
+    lra.
+Qed.
+
+Lemma ler_radius_itv (a b radius: R):
+    (a \in `[b-radius, b+radius]%R) <-> (`|a - b| <= radius).
+Proof.
+    rewrite in_itv //=.
+    case: (lerP a b).
+    lra.
+    lra.
+Qed.
+
+
 
 Theorem taylor_theorem (a x: R) :
     exists invRadius: R ,
@@ -804,4 +821,243 @@ Proof.
 
     apply: XN_cvgr.
     apply: X_cvgr.
+Qed.
+
+Theorem taylor_theorem2 (a: R) :
+    forall (n: nat), exists h: R->R,
+        (forall (x: R),
+            (h x) * (x-a)^+n = f x - \sum_(i < n.+1) term_nth i x a)
+        /\
+        h x @[x --> a] --> 0.
+Proof.
+    (* h x @[x-->a] --> 0 *)
+    move=> n.
+
+    have [xi_x H_xi_x]:=
+        @choice R R
+            _
+            (fun x => remainder_eq n x a).
+
+    pose h_x:= fun x: R =>
+        if x == a then 0
+        else (f x - \sum_(i < n.+1) term_nth i x a) / (x-a)^+n.
+    exists h_x.
+
+    split.
+    move=> x.
+    rewrite /h_x.
+    case: eqP.
+    move=> xa.
+    rewrite mul0r.
+    rewrite (_: \sum_(i < n.+1)  term_nth i x a = (\sum_(i < n.+1)  term_nth i x) x).
+        rewrite fct_sumE //=.
+        rewrite xa.
+        exact.
+    rewrite remainder_nth0_eq.
+    exact.
+
+    move=> xa_neq.
+    field?.
+    apply: expf_neq0.
+    lra.
+
+    apply/cvgrPdist_lt => eps eps_gt0.
+
+    have [C HC] := F_Analytic3 (a - eps) (a + eps).
+
+    pose K := `|C ^+ (n.+2)| * (n.+1)%:R.
+    pose D := K + 1.
+    pose delta := eps / D.
+
+    have Kge0 : 0 <= K.
+        by rewrite /K mulr_ge0 ?normr_ge0 ?ler0n.
+
+    have Dpos : 0 < D.
+        rewrite /D.
+        lra.
+    have Dge1 : 1 <= D.
+        rewrite /D.
+        lra.
+
+    have delta_pos : 0 < delta.
+        rewrite /delta.
+        apply: divr_gt0.
+        - exact: eps_gt0.
+        - exact: Dpos.
+
+    have delta_le_eps : delta <= eps.
+        rewrite /delta.
+        rewrite ler_pdivrMr //=.
+        nra.
+
+    have Ddelta : D * delta = eps.
+        rewrite /delta.
+        field?.
+        lra.
+
+    exists delta.
+    rewrite //=.
+    move=> x.
+    rewrite //=.
+    rewrite -normrN.
+    rewrite opprB.
+    rewrite /delta.
+    rewrite ltr_pdivlMr.
+    lra.
+    rewrite mulrC.
+    rewrite /D.
+    (* rewrite /D. *)
+    move=> xa_lt_delta.
+    have kxa_lt_epsilon: (K * `|x - a| < eps).
+        nra.
+    have xa_lt_epsilon: (`|x-a| < eps).
+        nra.
+    have xa_range: x \in `[a-eps, a+eps]%R.
+        rewrite ler_radius_itv.
+        rewrite ltW //=.
+    rewrite in_itv //= in xa_range.
+
+    rewrite sub0r.
+    rewrite normrN.
+    apply: le_lt_trans.
+    apply: (_: `|h_x x| <= K * `|x - a|).
+        rewrite /h_x.
+        case: eqP.
+
+        (* x = a *)
+        move=> xa.
+        rewrite normr0.
+        rewrite xa.
+        rewrite subrr normr0 mulr0 //=.
+
+
+        (* x != a *)
+        move/eqP=> xaneq.
+        have [H_xi xi_in_range]:= H_xi_x x.
+        have xi_range := in_itv_inequality xi_in_range.
+        rewrite H_xi //=.
+        rewrite !normrM.
+        set F:= f^`(n+1) (xi_x x).
+        set NF:= n`!%:R.
+        set XXI:= x - xi_x x.
+        set XA:= x - a.
+        have xxi_xa: `|XXI| <= `|XA|.
+            rewrite /XXI /XA.
+            (* |x - xi| <= |x - a| *)
+            case: (lerP a x).
+                (* a <= x *)
+                move=> xa.
+                move: (xi_in_range).
+                rewrite /minr /maxr in_itv //=.
+                rewrite ltNge.
+                rewrite xa //=.
+                move=> /andP [axi xix].
+                rewrite /XXI.
+                rewrite ger0_norm.
+                rewrite lerBrDr add0r.
+                exact xix.
+                rewrite lerD //=.
+                Search "ler" "N".
+                rewrite lerNr opprK.
+                exact axi.
+
+                (* x < a *)
+                move=> xa.
+                move: (xi_in_range).
+                rewrite /minr /maxr in_itv //=.
+                rewrite xa.
+                move=> /andP [axi xix].
+                rewrite /XXI.
+                rewrite ler0_norm.
+                Search "ltr" "D".
+                rewrite lerBlDl addr0.
+                exact axi.
+                Search (-(_ - _)).
+                rewrite opprB.
+                rewrite lerD //=.
+        have nFge0: `|F| >= 0.
+            apply: normr_ge0.
+        rewrite (_: `|F| * `|NF^-1| * `|XXI ^+ n| * `|XA| * `|XA ^- n| = `|F| * `|NF^-1| * `|XA| * `|XA ^- n| * `|XXI ^+ n|).
+            field.
+        apply: le_trans.
+            apply: (_: `|F| * `|NF^-1| * `|XA| * `|XA ^- n| * `|XXI ^+ n| <= `|F| * `|NF^-1| * `|XA| * `|XA ^- n| * `|XA^+ n|).
+                rewrite !normrX.
+                rewrite ler_wpM2l.
+                rewrite -!normrM.
+                apply: normr_ge0.
+                rewrite lerXn2r //=.
+                apply: normr_ge0.
+                apply: normr_ge0.
+                exact.
+
+            rewrite -mulrA.
+            rewrite -[`|XA ^- n| * `|XA ^+ n|]normrM.
+            rewrite (_: XA ^- n * XA ^+ n = 1).
+                rewrite mulVf.
+                rewrite expf_neq0.
+                rewrite subr_eq0 //=.
+                exact.
+                exact.
+            
+            rewrite normr1.
+            rewrite mulr1.
+            apply: ler_wpM2r.
+            apply: normr_ge0.
+            rewrite /K.
+            have xi_in_eps_range: xi_x x  \in `[a - eps, a + eps].
+                rewrite inE.
+                have [_ radius_form]:= (ler_radius_itv (xi_x x) a eps).
+                apply: radius_form.
+                apply: le_trans.
+
+                apply: (_: (`|xi_x x - a| <= `|x-a|)).
+                    case: (lerP a x).
+                    move=> ax.
+                    rewrite (_: (minr x a) = a) in xi_range.
+                    rewrite /minr //=.
+                    rewrite (_: x<a = false) //=.
+                    lra.
+                    rewrite (_: (maxr x a) = x) in xi_range.
+                    rewrite /maxr //=.
+                    rewrite (_: x<a = false) //=.
+                    lra.
+                    rewrite ger0_norm //=.
+                    lra.
+                    lra.
+
+                    move=> xa.
+                    rewrite (_: (minr x a) = x) in xi_range.
+                    rewrite /minr //=.
+                    rewrite (_: x<a = true) //=.
+                    rewrite (_: (maxr x a) = a) in xi_range.
+                    rewrite /maxr //=.
+                    rewrite (_: x<a = true) //=.
+                    rewrite ler0_norm //=.
+                    lra.
+                    lra.
+                rewrite ltW //=.
+
+            have HC_x := HC (n.+1) (xi_x x) xi_in_eps_range.
+            rewrite [`|NF^-1|]ger0_norm.
+            rewrite invr_ge0.
+            rewrite ler0n //=.
+            rewrite ler_pdivrMr.
+            rewrite ltr0n.
+            apply: fact_gt0.
+            rewrite /NF.
+            rewrite -[`|C ^+ n.+2| * n.+1%:R * n`!%:R]mulrA.
+            rewrite -natrM.
+            rewrite -factS.
+            rewrite [`|C ^+ n.+2|]ger0_norm.
+            Search "ler" "p" "M".
+            move: (HC_x).
+            rewrite -ler_pdivrMr //=.
+            rewrite -[(n.+1)`!%:R]ger0_norm //=.
+            rewrite -normf_div.
+            apply: le_trans.
+            apply: normr_ge0.
+            rewrite /F.
+            rewrite addn1.
+            exact HC_x.
+            rewrite //=.
 Qed.
