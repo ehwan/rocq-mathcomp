@@ -719,34 +719,35 @@ Proof.
             apply: normr_ge0.
 
             (* |x - xi| <= |x - a| *)
+            have xi_range := in_itv_inequality xi_in_range.
             case: (lerP a x).
-                (* a <= x *)
-                move=> xa.
-                move: (xi_in_range).
-                rewrite /minr /maxr in_itv //=.
-                rewrite ltNge.
-                rewrite xa //=.
-                move=> /andP [axi xix].
+                (* x >= a *)
+                move=> ax.
+                rewrite (_: minr x a = a) in xi_range.
+                    rewrite /minr //=.
+                    rewrite (_: x<a = false) //=.
+                    lra.
+                rewrite (_: maxr x a = x) in xi_range.
+                    rewrite /maxr //=.
+                    rewrite (_: x<a = false) //=.
+                    lra.
                 rewrite /XXI.
                 rewrite ger0_norm.
-                rewrite lerBrDr add0r.
-                exact xix.
-                rewrite lerD //=.
-                rewrite lerNr opprK.
-                exact axi.
+                lra.
+                lra.
 
                 (* x < a *)
                 move=> xa.
-                move: (xi_in_range).
-                rewrite /minr /maxr in_itv //=.
-                rewrite xa.
-                move=> /andP [axi xix].
+                rewrite (_: minr x a = x) in xi_range.
+                    rewrite /minr //=.
+                    rewrite (_: x<a = true) //=.
+                rewrite (_: maxr x a = a) in xi_range.
+                    rewrite /maxr //=.
+                    rewrite (_: x<a = true) //=.
                 rewrite /XXI.
                 rewrite ler0_norm.
-                rewrite lerBlDl addr0.
-                exact axi.
-                rewrite opprB.
-                rewrite lerD //=.
+                lra.
+                lra.
 
         have LE3: -(`|F| * `|N^-1| * `|XXI^+n| * `|XA|) <= F / N * XXI^+n * XA.
             rewrite -!normrM.
@@ -866,10 +867,8 @@ Proof.
     rewrite //=.
     move=> x.
     rewrite //=.
-    rewrite -normrN.
-    rewrite opprB.
-    rewrite /delta.
-    rewrite ltr_pdivlMr.
+    rewrite -normrN opprB.
+    rewrite /delta ltr_pdivlMr.
     lra.
     rewrite mulrC.
     rewrite /D.
@@ -880,8 +879,7 @@ Proof.
     have xa_lt_epsilon: (`|x-a| < eps).
         nra.
     have xa_range: x \in `[a-eps, a+eps]%R.
-        rewrite ler_radius_itv.
-        rewrite ltW //=.
+        rewrite ler_radius_itv ltW //=.
     rewrite in_itv //= in xa_range.
 
     rewrite sub0r.
@@ -936,10 +934,8 @@ Proof.
                 move=> /andP [axi xix].
                 rewrite /XXI.
                 rewrite ler0_norm.
-                Search "ltr" "D".
                 rewrite lerBlDl addr0.
                 exact axi.
-                Search (-(_ - _)).
                 rewrite opprB.
                 rewrite lerD //=.
         have nFge0: `|F| >= 0.
@@ -1016,7 +1012,6 @@ Proof.
             rewrite -natrM.
             rewrite -factS.
             rewrite [`|C ^+ n.+2|]ger0_norm.
-            Search "ler" "p" "M".
             move: (HC_x).
             rewrite -ler_pdivrMr //=.
             rewrite -[(n.+1)`!%:R]ger0_norm //=.
