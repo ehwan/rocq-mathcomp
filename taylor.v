@@ -22,216 +22,217 @@ Local Open Scope ring_scope.
 Local Open Scope classical_set_scope.
 
 
-Section taylor.
+Section taylor_coeff.
 Context (R: realType).
 Context (f: R -> R).
-(* Context (a: R).
-Context (b: R).
-Context (ab: a < b). *)
-(* {in `[a, b], forall x, P x} *)
-Context (F_Derivable: forall (n:nat) (x: R), derivable (derive1n n f) x 1).
-(* Analytic *)
 
-Context (F_Analytic3: forall (a b: R), exists C: R, forall (k: nat), {in `[a, b], forall x, `|f^`(k) x| <= C^+k.+1 * k`!%:R}).
-
-(* term_nth n x a := f'(n) (a) / n! * ( x - a )^n *)
-Definition term_nth (n: nat) (x: R) : R->R :=
+Definition taylor_coeff (n: nat) (x: R) : R->R :=
     f^`(n) * (cst n`!%:R^-1) * (cst x - id)^+n.
 
+Notation "`T_ n '[' a ']'" := (taylor_coeff n a).
+
 Lemma term_nth_0 (n: nat) (x: R) :
-    (n > 0)%N -> term_nth n x x = 0.
+    (n > 0)%N -> `T_n[x] x = 0.
 Proof.
-    move=> nge0.
-    unfold term_nth.
-    rewrite !fctE.
-    Check subrr.
-    Check right_inverse.
-    rewrite subrr.
-    Search "^+" "0" %R.
-    rewrite expr0n.
-    Search (_ < _ -> _ != _).
-    Check gtn_eqF.
-    rewrite (gtn_eqF nge0) /= mulr0.
-    exact.
+move=> nge0.
+unfold taylor_coeff.
+rewrite !fctE.
+rewrite subrr.
+rewrite expr0n.
+rewrite (gtn_eqF nge0) /= mulr0.
+exact.
 Qed.
 
 Lemma term_0th (x a: R) :
-    term_nth 0 x a = f a.
+    taylor_coeff 0 x a = f a.
 Proof.
-    unfold term_nth.
-    rewrite !fctE //=.
-    Search (_^+0)%R.
-    rewrite expr0.
-    Search 0`!%R.
-    rewrite fact0 //=.
-    Search "mul" "1r".
-    rewrite mulr1.
-    Search (_ / 1).
-    rewrite divr1.
-    exact.
+unfold taylor_coeff.
+rewrite !fctE //=.
+rewrite expr0.
+rewrite fact0 //=.
+rewrite mulr1.
+rewrite divr1.
+exact.
+Qed.
+End taylor_coeff.
+
+
+
+
+
+
+
+Section taylor_theorem.
+Context (R: realType).
+Context (f: R -> R).
+Context (k: nat).
+Context (a: R).
+Context (F_Derivable: forall (n: nat), (n<=k.+1)%N -> derivable (derive1n n f) a 1).
+
+
+(* TODO: use notation *)
+Lemma term_nth_derivable (n: nat) (a' x: R) :
+    (n<=k.+1)%N -> derivable (taylor_coeff f n x) a' 1.
+Proof.
+move=> nlek.
+unfold taylor_coeff.
+
+apply derivableM.
+- apply derivableM.
+  + by apply: F_Derivable.
+  + by apply derivable_cst.
+- apply derivableX.
+  apply derivableB.
+  + by apply derivable_cst.
+  + by apply derivable_id.
 Qed.
 
-Lemma term_nth_derivable (n: nat) (x a: R) :
-    derivable (term_nth n x) a 1.
+Lemma remainder_nth_derivate_eq (n: nat) (x: R) :
+    (n<=k.+1)%N -> (cst (f x) - \sum_(i < n.+1) taylor_coeff f i x)^`() = - f^`(n+1) * cst n`!%:R^-1 * (cst x - id)^+n.
 Proof.
-    unfold term_nth.
+move=> nlek.
+apply eq_fun.
+move=> a'.
+Search (_^`()).
+rewrite derive1E //=.
+Search "deriveB".
+rewrite deriveB.
+apply derivable_cst.
+Search derivable "sum".
+apply derivable_sum.
+move=> i.
+apply term_nth_derivable.
+Search derive "cst".
+rewrite derive_cst.
+rewrite sub0r.
+rewrite !fctE.
+Check oppr_inj.
+Check congr1.
+apply: oppr_inj.
+rewrite !mulNr.
+rewrite !opprK.
+rewrite derive_sum.
+move=> i.
+apply term_nth_derivable.
 
+
+unfold taylor_coeff.
+Search "derive" "*".
+Check eq_bigr.
+under eq_bigr.
+    move=> i _.
+    rewrite deriveM.
     apply derivableM.
-    apply derivableM.
-    apply: F_Derivable.
+    apply F_Derivable.
     apply derivable_cst.
+    Search derivable (_^+_)%R.
     apply derivableX.
     apply derivableB.
     apply derivable_cst.
     apply derivable_id.
-Qed.
 
-Lemma remainder_nth_derivate_eq (n: nat) (x: R) :
-    (cst (f x) - \sum_(i < n.+1) term_nth i x)^`() = - f^`(n+1) * cst n`!%:R^-1 * (cst x - id)^+n.
-Proof.
-    Check eq_fun.
-    apply eq_fun.
-    move=> a.
-    Search (_^`()).
-    rewrite derive1E //=.
-    Search "deriveB".
+    Search derive.
+    rewrite deriveX.
+    apply derivableB.
+    apply derivable_cst.
+    apply derivable_id.
+
+    Search derive.
     rewrite deriveB.
     apply derivable_cst.
-    Search derivable "sum".
-    apply derivable_sum.
-    move=> i.
-    apply term_nth_derivable.
-    Search derive "cst".
+    apply derivable_id.
+
     rewrite derive_cst.
+    rewrite derive_id.
+
+    rewrite deriveM.
+    apply F_Derivable.
+    apply derivable_cst.
+    rewrite derive_cst.
+
+    Search "derive".
+    rewrite -derive1E.
+    rewrite -derive1nS.
+
+    Search (0 - _).
     rewrite sub0r.
-    rewrite !fctE.
-    Check oppr_inj.
-    Check congr1.
-    apply: oppr_inj.
-    rewrite !mulNr.
-    rewrite !opprK.
-    rewrite derive_sum.
-    move=> i.
-    apply term_nth_derivable.
+    Search (-1*_).
+    rewrite !/cst.
+    rewrite !fctE /=.
+    rewrite [(i%:R * (x - a) ^+ i.-1) *: -1]mulrC.
+    rewrite mulNr.
+    rewrite mul1r.
+    Search (_*-_).
+    rewrite scalerN.
+    rewrite scaler0.
+    rewrite add0r.
+over.
+simpl.
 
+elim: n.
+    Check big_ord1.
+    rewrite big_ord1 //=.
+    rewrite !fact0.
+    rewrite !divr1.
+    rewrite !mul0r.
+    rewrite !scaler0.
+    Search (_^+0).
+    rewrite !expr0.
+    rewrite !mulr1.
+    Search (1^+_).
+    Search (1^-1).
+    rewrite invr1.
+    rewrite !scale1r.
+    rewrite addrC.
+    rewrite subr0.
+    exact.
 
-    unfold term_nth.
-    Search "derive" "*".
-    Check eq_bigr.
-    under eq_bigr.
-        move=> i _.
-        rewrite deriveM.
-        apply derivableM.
-        apply F_Derivable.
-        apply derivable_cst.
-        Search derivable (_^+_)%R.
-        apply derivableX.
-        apply derivableB.
-        apply derivable_cst.
-        apply derivable_id.
+    move=> n.
+    move=> IH.
+    rewrite big_ord_recr //=.
+    rewrite IH.
+    rewrite -derive1nS.
+    Search (_ + 1 = _.+1)%N.
+    rewrite !addn1.
+    set FFN := f^`(n.+1).
+    set NF := n`!%:R.
+    set XA := x-a.
+    set NNF := (n.+1)`!%:R.
+    rewrite !addrA.
+    rewrite !scalerA.
+    rewrite -[FFN a / NNF * n.+1%:R]mulrA.
+    rewrite /GRing.scale /=.
+    have n1_neq0 : n.+1%:R != 0 :> R.
+        by rewrite pnatr_eq0.
 
-        Search derive.
-        rewrite deriveX.
-        apply derivableB.
-        apply derivable_cst.
-        apply derivable_id.
+    have NNF_E : NNF = n.+1%:R * NF.
+        by rewrite /NNF /NF factS natrM.
+    have coeffE : NNF^-1 * n.+1%:R = NF^-1.
+        rewrite NNF_E.
+        rewrite invfM.
+        (* rewrite [NF^-1 * n.+1%:R]mulrC. *)
+        (* rewrite mulrA. *)
+        rewrite -mulrA.
+        rewrite [NF^-1 * n.+1%:R]mulrC.
+        rewrite mulrA.
+        Check mulVf.
+        rewrite mulVf.
+        exact n1_neq0.
+        apply: div1r.
 
-        Search derive.
-        rewrite deriveB.
-        apply derivable_cst.
-        apply derivable_id.
-
-        rewrite derive_cst.
-        rewrite derive_id.
-
-        rewrite deriveM.
-        apply F_Derivable.
-        apply derivable_cst.
-        rewrite derive_cst.
-
-        Search "derive".
-        rewrite -derive1E.
-        rewrite -derive1nS.
-
-        Search (0 - _).
-        rewrite sub0r.
-        Search (-1*_).
-        rewrite !/cst.
-        rewrite !fctE /=.
-        rewrite [(i%:R * (x - a) ^+ i.-1) *: -1]mulrC.
-        rewrite mulNr.
-        rewrite mul1r.
-        Search (_*-_).
-        rewrite scalerN.
-        rewrite scaler0.
-        rewrite add0r.
-    over.
-    simpl.
-
-    elim: n.
-        Check big_ord1.
-        rewrite big_ord1 //=.
-        rewrite !fact0.
-        rewrite !divr1.
-        rewrite !mul0r.
-        rewrite !scaler0.
-        Search (_^+0).
-        rewrite !expr0.
-        rewrite !mulr1.
-        Search (1^+_).
-        Search (1^-1).
-        rewrite invr1.
-        rewrite !scale1r.
-        rewrite addrC.
-        rewrite subr0.
-        exact.
-
-        move=> n.
-        move=> IH.
-        rewrite big_ord_recr //=.
-        rewrite IH.
-        rewrite -derive1nS.
-        Search (_ + 1 = _.+1)%N.
-        rewrite !addn1.
-        set FFN := f^`(n.+1).
-        set NF := n`!%:R.
-        set XA := x-a.
-        set NNF := (n.+1)`!%:R.
-        rewrite !addrA.
-        rewrite !scalerA.
-        rewrite -[FFN a / NNF * n.+1%:R]mulrA.
-        rewrite /GRing.scale /=.
-        have n1_neq0 : n.+1%:R != 0 :> R.
-            by rewrite pnatr_eq0.
-
-        have NNF_E : NNF = n.+1%:R * NF.
-            by rewrite /NNF /NF factS natrM.
-        have coeffE : NNF^-1 * n.+1%:R = NF^-1.
-            rewrite NNF_E.
-            rewrite invfM.
-            (* rewrite [NF^-1 * n.+1%:R]mulrC. *)
-            (* rewrite mulrA. *)
-            rewrite -mulrA.
-            rewrite [NF^-1 * n.+1%:R]mulrC.
-            rewrite mulrA.
-            Check mulVf.
-            rewrite mulVf.
-            exact n1_neq0.
-            apply: div1r.
-
-        rewrite coeffE.
-        rewrite subrr.
-        rewrite add0r.
-        rewrite mulrC.
-        rewrite [XA ^+ n.+1 / NNF]mulrC.
-        rewrite !mulrA.
-        exact.
+    rewrite coeffE.
+    rewrite subrr.
+    rewrite add0r.
+    rewrite mulrC.
+    rewrite [XA ^+ n.+1 / NNF]mulrC.
+    rewrite !mulrA.
+    exact.
 Qed.
 
 
 
 Lemma remainder_nth0_eq (n: nat) (x: R):
-    f x - (\sum_(i < n.+1) term_nth i x) x = 0.
+    f x - (\sum_(i < n.+1) taylor_coeff f i x) x = 0.
 Proof.
     induction n.
 
@@ -253,11 +254,11 @@ Qed.
 
 Lemma remainder_eq (n: nat) (x a: R) :
     exists xi: R,
-    f x - \sum_(i < n.+1) term_nth i x a = (f^`(n+1) xi) * n`!%:R^-1 * (x - xi)^+n * (x - a) 
+    f x - \sum_(i < n.+1) taylor_coeff f i x a = (f^`(n+1) xi) * n`!%:R^-1 * (x - xi)^+n * (x - a) 
     /\
     xi \in `[minr x a, maxr x a]%R.
 Proof.
-    have remainder_nth_derivable : forall x0: R, derivable (cst (f x) - \sum_(i < n.+1)  term_nth i x) x0 1.
+    have remainder_nth_derivable : forall x0: R, derivable (cst (f x) - \sum_(i < n.+1)  taylor_coeff f i x) x0 1.
         move=> x0.
         apply derivableB.
         apply derivable_cst.
@@ -265,7 +266,7 @@ Proof.
         move=> i.
         apply term_nth_derivable.
 
-    pose G := cst (f x) - \sum_(i < n.+1) term_nth i x.
+    pose G := cst (f x) - \sum_(i < n.+1) taylor_coeff f i x.
     Check derive1n.
     pose dG := derive1n 1 G.
 
@@ -295,7 +296,7 @@ Proof.
 
     have MVT_G_eq: forall xi: R,
         G x - G a = dG xi * (x - a) ->
-        f x - \sum_(i < n.+1)  term_nth i x a = f^`(n + 1) xi / n`!%:R * (x - xi) ^+ n * (x - a).
+        f x - \sum_(i < n.+1)  taylor_coeff f i x a = f^`(n + 1) xi / n`!%:R * (x - xi) ^+ n * (x - a).
         move=> xi.
         (* move=> mvt. *)
         unfold dG.
@@ -354,6 +355,255 @@ Proof.
         exact xi_range.
     }
 Qed.
+
+Theorem taylor_theorem :
+    exists h: R->R,
+        (forall (x: R),
+            (h x) * (x-a)^+k = f x - \sum_(i < k.+1) taylor_coeff f i x a)
+        /\
+        h x @[x --> a] --> 0.
+Proof.
+    (* h x @[x-->a] --> 0 *)
+
+    have [xi_x H_xi_x]:=
+        @choice R R
+            _
+            (fun x => remainder_eq k x a).
+
+    pose h_x:= fun x: R =>
+        if x == a then 0
+        else (f x - \sum_(i < n.+1) taylor_coeff f i x a) / (x-a)^+n.
+    exists h_x.
+
+    split.
+    move=> x.
+    rewrite /h_x.
+    case: eqP.
+    move=> xa.
+    rewrite mul0r.
+    rewrite (_: \sum_(i < n.+1)  taylor_coeff f i x a = (\sum_(i < n.+1)  taylor_coeff f i x) x).
+        rewrite fct_sumE //=.
+        rewrite xa.
+        exact.
+    rewrite remainder_nth0_eq.
+    exact.
+
+    move=> xa_neq.
+    field?.
+    apply: expf_neq0.
+    lra.
+
+    apply/cvgrPdist_lt => eps eps_gt0.
+
+    have [C HC] := F_Analytic3 (a - eps) (a + eps).
+
+    pose K := `|C ^+ (n.+2)| * (n.+1)%:R.
+    pose D := K + 1.
+    pose delta := eps / D.
+
+    have Kge0 : 0 <= K.
+        by rewrite /K mulr_ge0 ?normr_ge0 ?ler0n.
+
+    have Dpos : 0 < D.
+        rewrite /D.
+        lra.
+    have Dge1 : 1 <= D.
+        rewrite /D.
+        lra.
+
+    have delta_pos : 0 < delta.
+        rewrite /delta.
+        apply: divr_gt0.
+        - exact: eps_gt0.
+        - exact: Dpos.
+
+    have delta_le_eps : delta <= eps.
+        rewrite /delta.
+        rewrite ler_pdivrMr //=.
+        nra.
+
+    have Ddelta : D * delta = eps.
+        rewrite /delta.
+        field?.
+        lra.
+
+    exists delta.
+    rewrite //=.
+    move=> x.
+    rewrite //=.
+    rewrite -normrN opprB.
+    rewrite /delta ltr_pdivlMr.
+    lra.
+    rewrite mulrC.
+    rewrite /D.
+    (* rewrite /D. *)
+    move=> xa_lt_delta.
+    have kxa_lt_epsilon: (K * `|x - a| < eps).
+        nra.
+    have xa_lt_epsilon: (`|x-a| < eps).
+        nra.
+    have xa_range: x \in `[a-eps, a+eps]%R.
+        rewrite ler_radius_itv ltW //=.
+    rewrite in_itv //= in xa_range.
+
+    rewrite sub0r.
+    rewrite normrN.
+    apply: le_lt_trans.
+    apply: (_: `|h_x x| <= K * `|x - a|).
+        rewrite /h_x.
+        case: eqP.
+
+        (* x = a *)
+        move=> xa.
+        rewrite normr0.
+        rewrite xa.
+        rewrite subrr normr0 mulr0 //=.
+
+
+        (* x != a *)
+        move/eqP=> xaneq.
+        have [H_xi xi_in_range]:= H_xi_x x.
+        have xi_range := in_itv_inequality xi_in_range.
+        rewrite H_xi //=.
+        rewrite !normrM.
+        set F:= f^`(n+1) (xi_x x).
+        set NF:= n`!%:R.
+        set XXI:= x - xi_x x.
+        set XA:= x - a.
+        have xxi_xa: `|XXI| <= `|XA|.
+            rewrite /XXI /XA.
+            (* |x - xi| <= |x - a| *)
+            case: (lerP a x).
+                (* a <= x *)
+                move=> xa.
+                move: (xi_in_range).
+                rewrite /minr /maxr in_itv //=.
+                rewrite ltNge.
+                rewrite xa //=.
+                move=> /andP [axi xix].
+                rewrite /XXI.
+                rewrite ger0_norm.
+                rewrite lerBrDr add0r.
+                exact xix.
+                rewrite lerD //=.
+                Search "ler" "N".
+                rewrite lerNr opprK.
+                exact axi.
+
+                (* x < a *)
+                move=> xa.
+                move: (xi_in_range).
+                rewrite /minr /maxr in_itv //=.
+                rewrite xa.
+                move=> /andP [axi xix].
+                rewrite /XXI.
+                rewrite ler0_norm.
+                rewrite lerBlDl addr0.
+                exact axi.
+                rewrite opprB.
+                rewrite lerD //=.
+        have nFge0: `|F| >= 0.
+            apply: normr_ge0.
+        rewrite (_: `|F| * `|NF^-1| * `|XXI ^+ n| * `|XA| * `|XA ^- n| = `|F| * `|NF^-1| * `|XA| * `|XA ^- n| * `|XXI ^+ n|).
+            field.
+        apply: le_trans.
+            apply: (_: `|F| * `|NF^-1| * `|XA| * `|XA ^- n| * `|XXI ^+ n| <= `|F| * `|NF^-1| * `|XA| * `|XA ^- n| * `|XA^+ n|).
+                rewrite !normrX.
+                rewrite ler_wpM2l.
+                rewrite -!normrM.
+                apply: normr_ge0.
+                rewrite lerXn2r //=.
+                apply: normr_ge0.
+                apply: normr_ge0.
+                exact.
+
+            rewrite -mulrA.
+            rewrite -[`|XA ^- n| * `|XA ^+ n|]normrM.
+            rewrite (_: XA ^- n * XA ^+ n = 1).
+                rewrite mulVf.
+                rewrite expf_neq0.
+                rewrite subr_eq0 //=.
+                exact.
+                exact.
+            
+            rewrite normr1.
+            rewrite mulr1.
+            apply: ler_wpM2r.
+            apply: normr_ge0.
+            rewrite /K.
+            have xi_in_eps_range: xi_x x  \in `[a - eps, a + eps].
+                rewrite inE.
+                have [_ radius_form]:= (ler_radius_itv (xi_x x) a eps).
+                apply: radius_form.
+                apply: le_trans.
+
+                apply: (_: (`|xi_x x - a| <= `|x-a|)).
+                    case: (lerP a x).
+
+                    move=> ax.
+                    rewrite (_: (minr x a) = a) in xi_range.
+                    apply/min_idPr.
+                    exact ax.
+                    rewrite ger0_norm //=.
+                    lra.
+                    rewrite (_: (maxr x a) = x) in xi_range.
+                    apply/max_idPl.
+                    exact ax.
+                    lra.
+
+                    move=> xa.
+                    rewrite (_: (minr x a) = x) in xi_range.
+                    rewrite /minr //=.
+                    rewrite (_: x<a = true) //=.
+                    rewrite (_: (maxr x a) = a) in xi_range.
+                    rewrite /maxr //=.
+                    rewrite (_: x<a = true) //=.
+                    rewrite ler0_norm //=.
+                    lra.
+                    lra.
+                rewrite ltW //=.
+
+            have HC_x := HC (n.+1) (xi_x x) xi_in_eps_range.
+            rewrite [`|NF^-1|]ger0_norm.
+            rewrite invr_ge0.
+            rewrite ler0n //=.
+            rewrite ler_pdivrMr.
+            rewrite ltr0n.
+            apply: fact_gt0.
+            rewrite /NF.
+            rewrite -[`|C ^+ n.+2| * n.+1%:R * n`!%:R]mulrA.
+            rewrite -natrM.
+            rewrite -factS.
+            rewrite [`|C ^+ n.+2|]ger0_norm.
+            move: (HC_x).
+            rewrite -ler_pdivrMr //=.
+            rewrite -[(n.+1)`!%:R]ger0_norm //=.
+            rewrite -normf_div.
+            apply: le_trans.
+            apply: normr_ge0.
+            rewrite /F.
+            rewrite addn1.
+            exact HC_x.
+            rewrite //=.
+Qed.
+
+
+
+
+
+
+
+
+
+
+(* taylor analytic *)
+Section taylor_analytic.
+Context (R: realType).
+Context (f: R -> R).
+Context (F_Derivable: forall (n:nat) (x: R), derivable (derive1n n f) x 1).
+Context (F_Analytic3: forall (a b: R), exists C: R, forall (k: nat), {in `[a, b], forall x, `|f^`(k) x| <= C^+k.+1 * k`!%:R}).
+Notation "`T_ n '[' a ']'" := (taylor_coeff f n a).
+
 
 Definition nxn_sequence := fun (x: R) (n:nat) => n%:R * x^+n.
 
@@ -573,11 +823,12 @@ Qed.
 
 
 
-Theorem taylor_theorem (a x: R) :
+(* C * |x-a| < 1 *)
+Theorem taylor_theorem2 (a x: R) :
     exists Radius: R ,
         Radius > 0 ->
         `|x - a| < Radius
-        -> (fun n => f x - \sum_(i < n.+1) term_nth i x a) @\oo --> 0.
+        -> (fun n => f x - \sum_(i < n.+1) taylor_coeff f i x a) @\oo --> 0.
 Proof.
     pose range_min := minr x a.
     pose range_max := maxr x a.
@@ -600,7 +851,7 @@ Proof.
             (fun n => remainder_eq n x a).
 
     pose remainder_xi := fun n => (f^`(n+1) (xi_n n)) * n`!%:R^-1 * (x - (xi_n n))^+n * (x - a).
-    rewrite (_: (fun n => f x - \sum_(i < n.+1) term_nth i x a) = remainder_xi).
+    rewrite (_: (fun n => f x - \sum_(i < n.+1) taylor_coeff f i x a) = remainder_xi).
         rewrite /remainder_xi.
         apply eq_fun.
         move=> n.
@@ -791,235 +1042,4 @@ Proof.
     apply: X_cvgr.
 Qed.
 
-Theorem taylor_theorem2 (a: R) :
-    forall (n: nat), exists h: R->R,
-        (forall (x: R),
-            (h x) * (x-a)^+n = f x - \sum_(i < n.+1) term_nth i x a)
-        /\
-        h x @[x --> a] --> 0.
-Proof.
-    (* h x @[x-->a] --> 0 *)
-    move=> n.
-
-    have [xi_x H_xi_x]:=
-        @choice R R
-            _
-            (fun x => remainder_eq n x a).
-
-    pose h_x:= fun x: R =>
-        if x == a then 0
-        else (f x - \sum_(i < n.+1) term_nth i x a) / (x-a)^+n.
-    exists h_x.
-
-    split.
-    move=> x.
-    rewrite /h_x.
-    case: eqP.
-    move=> xa.
-    rewrite mul0r.
-    rewrite (_: \sum_(i < n.+1)  term_nth i x a = (\sum_(i < n.+1)  term_nth i x) x).
-        rewrite fct_sumE //=.
-        rewrite xa.
-        exact.
-    rewrite remainder_nth0_eq.
-    exact.
-
-    move=> xa_neq.
-    field?.
-    apply: expf_neq0.
-    lra.
-
-    apply/cvgrPdist_lt => eps eps_gt0.
-
-    have [C HC] := F_Analytic3 (a - eps) (a + eps).
-
-    pose K := `|C ^+ (n.+2)| * (n.+1)%:R.
-    pose D := K + 1.
-    pose delta := eps / D.
-
-    have Kge0 : 0 <= K.
-        by rewrite /K mulr_ge0 ?normr_ge0 ?ler0n.
-
-    have Dpos : 0 < D.
-        rewrite /D.
-        lra.
-    have Dge1 : 1 <= D.
-        rewrite /D.
-        lra.
-
-    have delta_pos : 0 < delta.
-        rewrite /delta.
-        apply: divr_gt0.
-        - exact: eps_gt0.
-        - exact: Dpos.
-
-    have delta_le_eps : delta <= eps.
-        rewrite /delta.
-        rewrite ler_pdivrMr //=.
-        nra.
-
-    have Ddelta : D * delta = eps.
-        rewrite /delta.
-        field?.
-        lra.
-
-    exists delta.
-    rewrite //=.
-    move=> x.
-    rewrite //=.
-    rewrite -normrN opprB.
-    rewrite /delta ltr_pdivlMr.
-    lra.
-    rewrite mulrC.
-    rewrite /D.
-    (* rewrite /D. *)
-    move=> xa_lt_delta.
-    have kxa_lt_epsilon: (K * `|x - a| < eps).
-        nra.
-    have xa_lt_epsilon: (`|x-a| < eps).
-        nra.
-    have xa_range: x \in `[a-eps, a+eps]%R.
-        rewrite ler_radius_itv ltW //=.
-    rewrite in_itv //= in xa_range.
-
-    rewrite sub0r.
-    rewrite normrN.
-    apply: le_lt_trans.
-    apply: (_: `|h_x x| <= K * `|x - a|).
-        rewrite /h_x.
-        case: eqP.
-
-        (* x = a *)
-        move=> xa.
-        rewrite normr0.
-        rewrite xa.
-        rewrite subrr normr0 mulr0 //=.
-
-
-        (* x != a *)
-        move/eqP=> xaneq.
-        have [H_xi xi_in_range]:= H_xi_x x.
-        have xi_range := in_itv_inequality xi_in_range.
-        rewrite H_xi //=.
-        rewrite !normrM.
-        set F:= f^`(n+1) (xi_x x).
-        set NF:= n`!%:R.
-        set XXI:= x - xi_x x.
-        set XA:= x - a.
-        have xxi_xa: `|XXI| <= `|XA|.
-            rewrite /XXI /XA.
-            (* |x - xi| <= |x - a| *)
-            case: (lerP a x).
-                (* a <= x *)
-                move=> xa.
-                move: (xi_in_range).
-                rewrite /minr /maxr in_itv //=.
-                rewrite ltNge.
-                rewrite xa //=.
-                move=> /andP [axi xix].
-                rewrite /XXI.
-                rewrite ger0_norm.
-                rewrite lerBrDr add0r.
-                exact xix.
-                rewrite lerD //=.
-                Search "ler" "N".
-                rewrite lerNr opprK.
-                exact axi.
-
-                (* x < a *)
-                move=> xa.
-                move: (xi_in_range).
-                rewrite /minr /maxr in_itv //=.
-                rewrite xa.
-                move=> /andP [axi xix].
-                rewrite /XXI.
-                rewrite ler0_norm.
-                rewrite lerBlDl addr0.
-                exact axi.
-                rewrite opprB.
-                rewrite lerD //=.
-        have nFge0: `|F| >= 0.
-            apply: normr_ge0.
-        rewrite (_: `|F| * `|NF^-1| * `|XXI ^+ n| * `|XA| * `|XA ^- n| = `|F| * `|NF^-1| * `|XA| * `|XA ^- n| * `|XXI ^+ n|).
-            field.
-        apply: le_trans.
-            apply: (_: `|F| * `|NF^-1| * `|XA| * `|XA ^- n| * `|XXI ^+ n| <= `|F| * `|NF^-1| * `|XA| * `|XA ^- n| * `|XA^+ n|).
-                rewrite !normrX.
-                rewrite ler_wpM2l.
-                rewrite -!normrM.
-                apply: normr_ge0.
-                rewrite lerXn2r //=.
-                apply: normr_ge0.
-                apply: normr_ge0.
-                exact.
-
-            rewrite -mulrA.
-            rewrite -[`|XA ^- n| * `|XA ^+ n|]normrM.
-            rewrite (_: XA ^- n * XA ^+ n = 1).
-                rewrite mulVf.
-                rewrite expf_neq0.
-                rewrite subr_eq0 //=.
-                exact.
-                exact.
-            
-            rewrite normr1.
-            rewrite mulr1.
-            apply: ler_wpM2r.
-            apply: normr_ge0.
-            rewrite /K.
-            have xi_in_eps_range: xi_x x  \in `[a - eps, a + eps].
-                rewrite inE.
-                have [_ radius_form]:= (ler_radius_itv (xi_x x) a eps).
-                apply: radius_form.
-                apply: le_trans.
-
-                apply: (_: (`|xi_x x - a| <= `|x-a|)).
-                    case: (lerP a x).
-                    move=> ax.
-                    rewrite (_: (minr x a) = a) in xi_range.
-                    rewrite /minr //=.
-                    rewrite (_: x<a = false) //=.
-                    lra.
-                    rewrite (_: (maxr x a) = x) in xi_range.
-                    rewrite /maxr //=.
-                    rewrite (_: x<a = false) //=.
-                    lra.
-                    rewrite ger0_norm //=.
-                    lra.
-                    lra.
-
-                    move=> xa.
-                    rewrite (_: (minr x a) = x) in xi_range.
-                    rewrite /minr //=.
-                    rewrite (_: x<a = true) //=.
-                    rewrite (_: (maxr x a) = a) in xi_range.
-                    rewrite /maxr //=.
-                    rewrite (_: x<a = true) //=.
-                    rewrite ler0_norm //=.
-                    lra.
-                    lra.
-                rewrite ltW //=.
-
-            have HC_x := HC (n.+1) (xi_x x) xi_in_eps_range.
-            rewrite [`|NF^-1|]ger0_norm.
-            rewrite invr_ge0.
-            rewrite ler0n //=.
-            rewrite ler_pdivrMr.
-            rewrite ltr0n.
-            apply: fact_gt0.
-            rewrite /NF.
-            rewrite -[`|C ^+ n.+2| * n.+1%:R * n`!%:R]mulrA.
-            rewrite -natrM.
-            rewrite -factS.
-            rewrite [`|C ^+ n.+2|]ger0_norm.
-            move: (HC_x).
-            rewrite -ler_pdivrMr //=.
-            rewrite -[(n.+1)`!%:R]ger0_norm //=.
-            rewrite -normf_div.
-            apply: le_trans.
-            apply: normr_ge0.
-            rewrite /F.
-            rewrite addn1.
-            exact HC_x.
-            rewrite //=.
-Qed.
+End taylor_analytic.
