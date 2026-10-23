@@ -21,6 +21,159 @@ From mathcomp Require Import ring lra field arithmetic_tactic.
 Local Open Scope ring_scope.
 Local Open Scope classical_set_scope.
 
+Section sequence.
+Context (R: realType).
+Definition geometric_arithmetic (a r: R) := [sequence a*(r^+n)*+n]_n.
+
+Theorem cvg_geometric_arithmetic (a r: R) :
+  `|r| < 1 -> geometric_arithmetic a r @\oo --> 0.
+Proof.
+move=> radius.
+(* cbn. *)
+(* apply: norm_cvg0. *)
+pose q:R := (`|r| + 1)/2.
+pose t:R := `|r| / q.
+pose C:R := `|a| / ( 1 - t ).
+
+have rnorm_ge0:= (normr_ge0 r).
+
+have q_gt_rnorm: q > `|r|.
+- rewrite /q.
+  by lra.
+
+have q_lt1: q < 1.
+- rewrite /q.
+  by lra.
+
+have t_ge0: t >= 0.
+- rewrite /t.
+  rewrite ler_pdivlMr.
+  lra.
+  by lra.
+
+have t_lt1: t < 1.
+- rewrite /t.
+  rewrite ltr_pdivrMr.
+  lra.
+  by lra.
+
+have tn_ge0 (n: nat): t^+n >= 0.
+- by rewrite exprn_ge0 //=.
+
+have r_eq_tq: `|r| = t * q.
+- rewrite /t.
+  rewrite divfK //=.
+  by lra.
+
+(* for squeeze theorem *)
+have cvg_X: C * q^+n @[n --> \oo] --> 0.
+- rewrite -(mulr0 C).
+  apply: cvgMl_tmp.
+  apply: cvg_expr.
+  rewrite ger0_norm //=.
+  by lra.
+
+have cvg_nX: -(C * q^+n) @[n --> \oo] --> 0.
+- rewrite -oppr0.
+  apply: cvgN.
+  by apply: cvg_X.
+
+(* squeeze theorem le_trans *)
+have LE0 (n: nat): geometric_arithmetic a r n <= `|a| * `|r^+n| *+ n.
+- rewrite /geometric_arithmetic.
+  cbn.
+  rewrite -normrM.
+  rewrite -normrMn.
+  by apply: ler_norm.
+
+have LE1 (n: nat): `|a| * `|r^+n| *+ n <= `|a| * (\sum_(i < n) t^+i) * q^+n.
+- rewrite -mulrA -mulrnAr.
+  apply: ler_wpM2l.
+  + by apply: normr_ge0.
+  rewrite normrX r_eq_tq exprMn -mulrnAl.
+  apply: ler_wpM2r.
+  + apply: exprn_ge0. 
+    by lra.
+
+  elim: n.
+  + rewrite expr0.
+    by rewrite big_ord0.
+  + move=> n IH.
+    apply: le_trans.
+    * apply: (_: t^+n.+1 *+ n.+1 <= t^+n *+ (n.+1)).
+      - rewrite ler_pMn2r //=.
+        rewrite -[t^+n]mul1r.
+        rewrite exprS.
+        rewrite ler_wpM2r //=.
+        by lra.
+    * rewrite big_ord_recr //=.
+      rewrite mulrSr.
+      rewrite lerD2r.
+      by exact: IH.
+
+have geometric_series_mult (n: nat): (\sum_(i < n)  t ^+ i) * (1 - t) = 1 - t^+n.
+- elim: n.
+  + rewrite big_ord0 //=.
+    rewrite expr0.
+    by field.
+  + move=> n IH.
+    rewrite big_ord_recr //=.
+    rewrite mulrDl.
+    rewrite IH.
+    rewrite exprSr.
+    by field.
+
+have LE2 (n: nat): `|a| * (\sum_(i < n) t^+i) * q^+n <= C * q^+n.
+- rewrite ler_wpM2r //=.
+  + apply: exprn_ge0.
+    by lra.
+  rewrite /C ler_wpM2l //=.
+
+  rewrite -div1r ler_pdivlMr.
+  + by lra.
+
+  have tn_ge0':= (tn_ge0 n).
+  rewrite geometric_series_mult.
+  by lra.
+
+have LE3 (n: nat): -(`|a| * `|r^+n| *+ n) <= geometric_arithmetic a r n.
+- rewrite /geometric_arithmetic.
+  cbn.
+  rewrite -normrM.
+  rewrite -normrMn.
+  by apply: lerNnormlW.
+
+
+have LE4 (n: nat): -(`|a| * (\sum_(i < n) t^+i) * q^+n) <= -(`|a| * `|r^+n| *+ n).
+- rewrite lerN2.
+  by apply: LE1.
+
+
+have LE5 (n: nat): -(C * q^+n) <= -(`|a| * (\sum_(i < n) t^+i) * q^+n).
+- rewrite lerN2.
+  by apply: LE2.
+
+apply: squeeze_cvgr.
+- apply: nearW.
+  move=> n.
+  apply /andP.
+  split.
+  + apply: le_trans.
+    * apply: le_trans.
+      - by apply: LE5.
+      - by apply: LE4.
+    * by apply: LE3.
+  + apply: le_trans.
+    * apply: le_trans.
+      - by apply: LE0.
+      - by apply: LE1.
+    * by apply: LE2.
+- by apply: cvg_nX.
+- by apply: cvg_X.
+Qed.
+
+End sequence.
+
 
 Section taylor_coeff.
 Context (R: realType).
@@ -603,205 +756,6 @@ Context (F_Analytic3: forall (a b: R), exists C: R, forall (k: nat), {in `[a, b]
 Notation "`T_ n '[' a ']'" := (taylor_coeff f n a).
 
 
-Definition nxn_sequence := fun (x: R) (n:nat) => n%:R * x^+n.
-
-Lemma cvg_nxn: forall (x: R), `|x| < 1 -> (nxn_sequence x) @\oo --> 0.
-    move=> x.
-    move=> x_lt1.
-    pose q := (`|x| + 1)/2.
-    pose t := `|x| / q.
-
-    have xnorm_ge0: `|x| >= 0.
-        by apply: normr_ge0.
-
-    have q_gt0: q > 0.
-        rewrite /q.
-        by lra.
-
-    have q_gx: q > `|x|.
-        rewrite /q.
-        by lra.
-
-    have q_lt1: q < 1.
-        rewrite /q.
-        by lra.
-
-    have t_ge0: t >= 0.
-        rewrite /t.
-        rewrite ler_pdivlMr.
-            by exact q_gt0.
-        by lra.
-
-    have t_lt1: t < 1.
-        rewrite /t.
-        rewrite ltr_pdivrMr.
-            by exact q_gt0.
-        by lra.
-
-    have tn_ge0: forall (n:nat), t^+n >= 0.
-        move=> n.
-        apply: exprn_ge0.
-        by exact: t_ge0.
-
-    (* have tn_lt1: forall (n:nat), t^+n < 1.
-        move=> n.
-        Search (_^+_ < _).
-        rewrite exprn_lt1. *)
-
-    pose C: R:= 1 / ( 1 - t ).
-    pose X_n := fun (n: nat) => C * q^+n.
-
-    (* 
-        squeeze theorem
-       -X_n <= n * x^n <= X_n 
-       X_n = C * q^n 
-    *)
-
-    have X_cvgr : X_n @\oo --> 0.
-        rewrite /X_n.
-        rewrite -(mulr0 C).
-        apply: cvgMl_tmp.
-        apply: cvg_expr.
-        rewrite ger0_norm.
-        lra.
-        lra.
-
-    have XN_cvgr : -X_n @\oo --> 0.
-        rewrite -oppr0.
-        apply: cvgN.
-        by apply: X_cvgr.
-
-    have ntn_le_sum: forall n: nat, t ^+n *+ n <= \sum_(i < n) t ^+ i.
-        move=> n.
-        elim: n.
-
-        (* n = 0 *)
-        rewrite mulr0n.
-        rewrite big_ord0 //=.
-
-        (* n = Sn' *)
-        move=> n IH.
-
-        apply: le_trans.
-        apply: (_: t^+n.+1 *+ n.+1 <= t^+n *+ (n.+1)).
-            rewrite ler_pMn2r //=.
-            rewrite exprS.
-            rewrite -{2}[t^+n]mul1r.
-            rewrite ler_wpM2r //=.
-            by lra.
-
-        rewrite big_ord_recr //=.
-        rewrite mulrSr.
-        rewrite lerD2r.
-        by exact: IH.
-
-    (* forall n, \sum t^i <= 1/(1-t) *)
-    have t_sum_le_infinity_sum: forall n: nat, \sum_(i < n) t^+i <= 1 / (1 - t).
-        have t_sum_eq: forall n, (\sum_(i < n) t^+i)*(1 - t) = 1 - t^+n.
-            move=> n.
-            elim: n.
-
-            (* n = 0 *)
-            rewrite big_ord0.
-            field.
-
-            (* n = Sn' *)
-            move=> n IH.
-            rewrite big_ord_recr //=.
-            rewrite mulrDl.
-            rewrite IH.
-            rewrite exprSr.
-            by field.
-
-        move=> n.
-        rewrite ler_pdivlMr.
-        lra.
-        rewrite t_sum_eq.
-        rewrite lerBlDr.
-        rewrite lerDl.
-        by apply: tn_ge0.
-
-    have F_range : forall n: nat, -X_n n <= nxn_sequence x n <= X_n n.
-        move=> n.
-        rewrite !/X_n /nxn_sequence.
-
-        have LE0: nxn_sequence x n <= `|n%:R| * `|x^+n|.
-            rewrite /nxn_sequence.
-            rewrite -!normrM.
-            apply: ler_norm.
-
-        have LE1: `|n%:R| * `|x^+n| <= `|n%:R| * t^+n * q^+n.
-            rewrite /t.
-            Search "ler" "M" "p" "w".
-            rewrite -!mulrA.
-            apply: ler_wpM2l.
-            apply: normr_ge0.
-            Search ((_ * _)^+_).
-            rewrite expr_div_n.
-            rewrite -mulrA.
-            Search "inv" "K".
-            rewrite mulVr.
-            apply: unitrX.
-            rewrite unitfE //=.
-            Search (_ < _ -> _ != _).
-            apply: lt0r_neq0.
-            apply: q_gt0.
-            rewrite mulr1.
-
-            Search "norm" "X".
-            rewrite normrX.
-            exact.
-
-        have LE2: `|n%:R| * t^+n * q^+n <= C * q^+n.
-            apply: ler_wpM2r.
-            apply: exprn_ge0.
-            lra.
-
-            rewrite ger0_norm //=.
-            Search "mulr" "nat".
-            rewrite mulr_natl.
-            apply: le_trans.
-            apply: ntn_le_sum.
-            rewrite /C.
-            by exact: t_sum_le_infinity_sum.
-
-        have LE3: -(`|n%:R| * `|x^+n|) <= nxn_sequence x n.
-            rewrite -!normrM.
-            apply: lerNnormlW.
-            exact.
-
-        have LE4: -(`|n%:R| * t^+n * q^+n) <= -(`|n%:R| * `|x^+n|).
-            rewrite lerN2.
-            apply: LE1.
-
-        have LE5: -(C * q^+n) <= -(`|n%:R| * t^+n * q^+n).
-            rewrite lerN2.
-            apply: LE2.
-
-        apply /andP.
-        split.
-
-        apply: le_trans.
-        apply: le_trans.
-        apply: LE5.
-        apply: LE4.
-        apply: LE3.
-
-        (* remainder_xi n <= X_n n. *)
-        apply: le_trans.
-        apply: le_trans.
-        apply: LE0.
-        apply: LE1.
-        apply: LE2.
-
-    Check squeeze_cvgr.
-    apply: squeeze_cvgr.
-    apply: nearW.
-    apply: F_range.
-
-    apply: XN_cvgr.
-    apply: X_cvgr.
-Qed.
 
 Lemma in_itv_inequality (a b x: R):
     x \in `[a, b]%R -> 0 <= x - a <= b - a /\ 0 <= b - x <= b - a.
