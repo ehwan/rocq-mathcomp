@@ -26,8 +26,8 @@ Section taylor_coeff.
 Context (R: realType).
 Context (f: R -> R).
 
-Definition taylor_coeff (n: nat) (x: R) : R->R :=
-    f^`(n) * (cst n`!%:R^-1) * (cst x - id)^+n.
+Definition taylor_coeff (n: nat) (a: R) : R->R :=
+    (cst (f^`(n) a)) * (cst n`!%:R^-1) * (id - cst a)^+n.
 
 Notation "`T_ n '[' a ']'" := (taylor_coeff n a).
 
@@ -35,28 +35,24 @@ Lemma term_nth_0 (n: nat) (x: R) :
     (n > 0)%N -> `T_n[x] x = 0.
 Proof.
 move=> nge0.
-unfold taylor_coeff.
+rewrite /taylor_coeff.
 rewrite !fctE.
 rewrite subrr.
 rewrite expr0n.
-rewrite (gtn_eqF nge0) /= mulr0.
-exact.
+by rewrite (gtn_eqF nge0) /= mulr0.
 Qed.
 
-Lemma term_0th (x a: R) :
-    taylor_coeff 0 x a = f a.
+Lemma taylor_coeff0 (a x: R) :
+    `T_0[a] x = f a.
 Proof.
-unfold taylor_coeff.
-rewrite !fctE //=.
-rewrite expr0.
+rewrite /taylor_coeff.
+rewrite !fctE.
 rewrite fact0 //=.
-rewrite mulr1.
-rewrite divr1.
-exact.
+rewrite expr0.
+by rewrite mulr1 divr1.
 Qed.
+
 End taylor_coeff.
-
-
 
 
 
@@ -69,17 +65,19 @@ Context (k: nat).
 Context (a: R).
 Context (F_Derivable: forall (n: nat), (n<=k.+1)%N -> derivable (derive1n n f) a 1).
 
+Notation "`T_ n '[' x ']'" := (taylor_coeff f n x).
+
 
 (* TODO: use notation *)
-Lemma term_nth_derivable (n: nat) (a' x: R) :
-    (n<=k.+1)%N -> derivable (taylor_coeff f n x) a' 1.
+Lemma term_nth_derivable (n: nat) (x: R) :
+    (n<=k.+1)%N -> derivable (taylor_coeff f n x) a 1.
 Proof.
 move=> nlek.
 unfold taylor_coeff.
 
 apply derivableM.
 - apply derivableM.
-  + by apply: F_Derivable.
+  + by apply: (F_Derivable nlek).
   + by apply derivable_cst.
 - apply derivableX.
   apply derivableB.
