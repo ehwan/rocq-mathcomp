@@ -15,7 +15,6 @@ Import numFieldNormedType.Exports.
 
 Import Num.Def Num.Theory.
 
-(* From Coq Require Import Reals. *)
 From mathcomp Require Import ring_tactic field_tactic arithmetic_tactic.
 
 Local Open Scope ring_scope.
@@ -29,148 +28,90 @@ Theorem cvg_geometric_arithmetic (a r: R) :
   `|r| < 1 -> geometric_arithmetic a r @\oo --> 0.
 Proof.
 move=> radius.
-(* cbn. *)
-(* apply: norm_cvg0. *)
 pose q:R := (`|r| + 1)/2.
 pose t:R := `|r| / q.
 pose C:R := `|a| / ( 1 - t ).
 
-have rnorm_ge0:= (normr_ge0 r).
-
-have q_gt_rnorm: q > `|r|.
-- rewrite /q.
+have rnorm_ge0 := normr_ge0 r.
+have q_bounds : `|r| < q < 1.
+- rw /q.
   by lra.
-
-have q_lt1: q < 1.
-- rewrite /q.
+have tq : t * q = `|r|.
+- rw /t.
+  have q_neq : q != 0 by lra.
+  by field.
+have t_bounds : 0 <= t < 1 by nra.
+have tn_ge0 n : 0 <= t^+n.
+- apply: exprn_ge0.
   by lra.
-
-have t_ge0: t >= 0.
-- rewrite /t.
-  rewrite ler_pdivlMr.
-  lra.
-  by lra.
-
-have t_lt1: t < 1.
-- rewrite /t.
-  rewrite ltr_pdivrMr.
-  lra.
-  by lra.
-
-have tn_ge0 (n: nat): t^+n >= 0.
-- by rewrite exprn_ge0 //=.
-
-have tn_le (n: nat): t^+n.+1 <= t^+n.
-- rewrite exprS.
-  have tn_nonneg := tn_ge0 n.
-  by nra.
-
-have r_eq_tq: `|r| = t * q.
-- rewrite /t.
-  rewrite divfK //=.
-  by lra.
-
-(* for squeeze theorem *)
-have cvg_X: C * q^+n @[n --> \oo] --> 0.
-- rewrite -(mulr0 C).
+have cvg_X : C * q^+n @[n --> \oo] --> 0.
+- rw -(mulr0 C).
   apply: cvgMl_tmp.
   apply: cvg_expr.
-  rewrite ger0_norm //=.
-  by lra.
-
-have cvg_nX: -(C * q^+n) @[n --> \oo] --> 0.
-- rewrite -oppr0.
-  apply: cvgN.
-  by apply: cvg_X.
-
-(* squeeze theorem le_trans *)
-have LE0 (n: nat): geometric_arithmetic a r n <= `|a| * `|r^+n| *+ n.
-- rewrite /geometric_arithmetic.
-  cbn.
-  rewrite -normrM.
-  rewrite -normrMn.
-  by apply: ler_norm.
-
-have LE1 (n: nat): `|a| * `|r^+n| *+ n <= `|a| * (\sum_(i < n) t^+i) * q^+n.
-- rewrite -mulrA -mulrnAr.
-  apply: ler_wpM2l.
-  + by apply: normr_ge0.
-  rewrite normrX r_eq_tq exprMn -mulrnAl.
-  apply: ler_wpM2r.
-  + apply: exprn_ge0. 
-    by lra.
-
-  elim: n.
-  + rewrite expr0.
-    by rewrite big_ord0.
-  + move=> n IH.
-    apply: le_trans.
-    * apply: (_: t^+n.+1 *+ n.+1 <= t^+n *+ (n.+1)).
-      - by rewrite ler_pMn2r //=.
-    * rewrite big_ord_recr //=.
-      rewrite mulrSr.
-      rewrite lerD2r.
-      by exact: IH.
-
-have geometric_series_mult (n: nat): (\sum_(i < n)  t ^+ i) * (1 - t) = 1 - t^+n.
-- elim: n.
-  + rewrite big_ord0 //=.
-    rewrite expr0.
-    by ring.
-  + move=> n IH.
-    rewrite big_ord_recr //=.
-    rewrite mulrDl.
-    rewrite IH.
-    rewrite exprSr.
-    by ring.
-
-have LE2 (n: nat): `|a| * (\sum_(i < n) t^+i) * q^+n <= C * q^+n.
-- rewrite ler_wpM2r //=.
-  + apply: exprn_ge0.
-    by lra.
-  rewrite /C ler_wpM2l //=.
-
-  rewrite -div1r ler_pdivlMr.
+  rw ger0_norm.
+  + by lra.
   + by lra.
 
-  have tn_ge0':= (tn_ge0 n).
-  rewrite geometric_series_mult.
-  by lra.
-
-have LE3 (n: nat): -(`|a| * `|r^+n| *+ n) <= geometric_arithmetic a r n.
-- rewrite /geometric_arithmetic.
-  cbn.
-  rewrite -normrM.
-  rewrite -normrMn.
-  by apply: lerNnormlW.
-
-
-have LE4 (n: nat): -(`|a| * (\sum_(i < n) t^+i) * q^+n) <= -(`|a| * `|r^+n| *+ n).
-- rewrite lerN2.
-  by apply: LE1.
-
-
-have LE5 (n: nat): -(C * q^+n) <= -(`|a| * (\sum_(i < n) t^+i) * q^+n).
-- rewrite lerN2.
-  by apply: LE2.
-
+have series_range n :
+    -(C * q^+n) <= geometric_arithmetic a r n <= C * q^+n.
+- rw -ler_norml.
+  rw /geometric_arithmetic /=.
+  rw normrMn normrM.
+  have partial_bound :
+      `|a| * `|r^+n| *+ n <= `|a| * (\sum_(i < n) t^+i) * q^+n.
+  + rw -mulrA -mulrnAr.
+    apply: ler_wpM2l.
+    * exact: normr_ge0.
+    rw normrX.
+    rw -tq.
+    rw exprMn.
+    rw -mulrnAl.
+    apply: ler_wpM2r.
+    * apply: exprn_ge0.
+      by lra.
+    elim: n => [|n IH].
+    * rw expr0.
+      rw big_ord0.
+      by lra.
+    * rw big_ord_recr /=.
+      rw -mulr_natr -natr1.
+      rw -mulr_natr in IH.
+      have tn_step : t^+n.+1 <= t^+n.
+      - rw exprS.
+        have := tn_ge0 n.
+        by nra.
+      have := ler0n R n.
+      by nra.
+  apply: le_trans.
+  + exact: partial_bound.
+  + clear partial_bound.
+    apply: ler_wpM2r.
+    * apply: exprn_ge0.
+      by lra.
+    rw /C.
+    apply: ler_wpM2l.
+    * exact: normr_ge0.
+    rw -div1r.
+    rw ler_pdivlMr.
+    * by lra.
+    have geom_sum : (\sum_(i < n) t^+i) * (1 - t) = 1 - t^+n.
+    * elim: n => [|n IH].
+      - rw big_ord0.
+        rw expr0.
+        by ring.
+      - rw big_ord_recr /=.
+        rw exprSr.
+        by nra.
+    rw geom_sum.
+    have := tn_ge0 n.
+    by lra.
 apply: squeeze_cvgr.
 - apply: nearW.
-  move=> n.
-  apply /andP.
-  split.
-  + apply: le_trans.
-    * apply: le_trans.
-      - by apply: LE5.
-      - by apply: LE4.
-    * by apply: LE3.
-  + apply: le_trans.
-    * apply: le_trans.
-      - by apply: LE0.
-      - by apply: LE1.
-    * by apply: LE2.
-- by apply: cvg_nX.
-- by apply: cvg_X.
+  exact: series_range.
+- rw -oppr0.
+  apply: cvgN.
+  exact: cvg_X.
+- exact: cvg_X.
 Qed.
 
 End sequence.

@@ -7,7 +7,7 @@ From mathcomp Require Import unstable.
 From mathcomp Require Import boolp contra classical_sets functions reals.
 From mathcomp Require Import topology tvs normedtype landau derive sequences realfun.
 
-Require Import sequence.
+Require Import taylor_poly.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -19,310 +19,289 @@ Import Num.Def Num.Theory.
 
 (* From Coq Require Import Reals. *)
 From mathcomp Require Import ring_tactic field_tactic arithmetic_tactic.
+From mathcomp Require Import zify.
 
 Local Open Scope ring_scope.
 Local Open Scope classical_set_scope.
 
 Section taylor_theorem.
-Context (R : realType) (f : R -> R) (k : nat) (a r : R).
-Context (r_gt0 : 0 < r).
-Context (F_Derivable : forall d (x : R), (d <= k)%N ->
-  x \in `]a - r, a + r[%R -> derivable (f^`(d)) x 1).
+Context (R : realType) (f : R -> R) (a : R).
 
-(* T_{d;n}: the degree-n Taylor polynomial of the dth derivative of f.
-   The sum includes i = 0, ..., n, hence n + 1 terms. *)
-Definition taylor_term (d n : nat) : R -> R :=
-  cst (f^`(d + n) a) * cst n`!%:R^-1 * (id - cst a)^+n.
-
-Definition taylor_sum (d n : nat) :=
-  \sum_(i < n.+1) taylor_term d i.
-
-Definition taylor_quotient (d n : nat) x :=
-  (f^`(d) x - taylor_sum d n x) / (x - a)^+n.
-
-Local Notation "'T_' '(' d ';' n ')'" := (taylor_sum d n).
-Local Notation "'h_' '(' d ';' n ')'" := (taylor_quotient d n).
-
-Lemma taylor_term_derivable d n x : derivable (taylor_term d n) x 1.
+(* f is k times differentiable. *)
+Context (k: nat).
+Context (k_gt0 : (0 < k)%N).
+Context (F_Derivable : derivable (f^`(k.-1)) a 1).
+Context (F_Derivable_Near: forall (d: nat), (d<k.-1)%N -> \forall x \near a, derivable f^`(d) x 1).
+(* f^(k) (a) ->  f^(k-1) \near x *)
+(* derivale f^(d) -> derivable f^(d-1) ? *)
+(* Lemma F_Derivable_Near (d: nat): (d<k.-1)%N -> \forall x \near a, derivable f^`(d) x 1.
 Proof.
-apply: derivableM.
-- apply: derivableM.
-  + exact: derivable_cst.
-  + exact: derivable_cst.
-- apply: derivableX.
-  apply: derivableB.
-  + exact: derivable_id.
-  + exact: derivable_cst.
-Qed.
+elim: d.
+- move=> dk.
+  near=>x.
+  (* Unset Printing Notations. *)
+  Print derive1n.
+  Print derive1.
 
-Lemma taylor_sum_derivable d n x : derivable T_(d; n) x 1.
-Proof.
-apply: derivable_sum.
-move=> i.
-exact: taylor_term_derivable.
-Qed.
+  have kgt1: (1 < k)%N.
+    admit.
+  have FD2:= (@F_Derivable 1 kgt1).
+  move: FD2.
 
-Lemma taylor_sum0 d x : T_(d; 0) x = f^`(d) a.
-Proof.
-rewrite /taylor_sum big_ord1.
-rewrite /taylor_term !fctE.
-rewrite addn0 fact0 expr0.
-by rewrite invr1 !mulr1.
-Qed.
+  rw /derivable. *)
+  (* exists f^`(1) (near a)  -->  derivable f^`(0) (near a) ? *)
 
-Lemma taylor_term_centerS d n : taylor_term d n.+1 a = 0.
-Proof.
-rewrite /taylor_term !fctE.
-rewrite subrr expr0n.
-by rewrite mulr0.
-Qed.
+  (* (derivable f^`(1) a 1) -> (derivable f^`(0) x 1).
+  f^(1)' = lim h->0 ( f^(1) (near a) - f^(1)(x) ) / h, h!=0
+  --> f^(1) (near a) が定義
+  --> f^(0) が near aで微分可能 *)
 
-Lemma taylor_sumS d n x :
-  T_(d; n.+1) x = T_(d; n) x + taylor_term d n.+1 x.
-Proof.
-by rewrite /taylor_sum big_ord_recr /= fctE.
-Qed.
-
-Lemma taylor_sum_center d n : T_(d; n) a = f^`(d) a.
-Proof.
-elim: n.
-- exact: taylor_sum0.
-- move=> n IHn.
-  rewrite taylor_sumS.
-  rewrite IHn taylor_term_centerS.
-  by rewrite addr0.
-Qed.
+  (* f` -> f_derivable  *)
 
 
-Lemma derive_taylor_term0 d x : 'D_1 (taylor_term d 0) x = 0.
-Proof.
-have -> : taylor_term d 0 = cst (f^`(d) a).
-- apply/funext => y.
-  rewrite /taylor_term !fctE.
-  rewrite addn0 fact0 expr0.
-  by rewrite invr1 !mulr1.
-exact: derive_cst.
-Qed.
 
-Lemma derive_taylor_termS d n x :
-  'D_1 (taylor_term d n.+1) x = taylor_term d.+1 n x.
-Proof.
-have dxa : derivable (id - cst a) x 1.
-- apply: derivableB.
-  + exact: derivable_id.
-  + exact: derivable_cst.
-have dc : derivable
-    (cst (f^`(d + n.+1) a) * cst (n.+1)`!%:R^-1) x 1.
-- apply: derivableM.
-  + exact: derivable_cst.
-  + exact: derivable_cst.
-have dx : derivable ((id - cst a)^+n.+1) x 1.
-- apply: derivableX.
-  exact: dxa.
-rewrite /taylor_term (deriveM dc dx).
-clear dc dx.
-rewrite deriveX //.
-rewrite deriveB ?derivable_id ?derivable_cst //.
-rewrite derive_id derive_cst.
-rewrite subr0 scaler1.
-rewrite deriveM ?derivable_cst // !derive_cst.
-rewrite !scaler0 add0r scaler0 addr0.
-rewrite !fctE.
-rewrite addnS addSn /=.
-rewrite /GRing.scale /=.
-have factS_E : (n.+1)`!%:R = n.+1%:R * n`!%:R :> R.
-- by rewrite factS natrM.
-have fact_neq0 : n`!%:R != 0 :> R.
-- by rewrite pnatr_eq0 -lt0n fact_gt0.
-have factS_neq0 : (n.+1)`!%:R != 0 :> R.
-- by rewrite pnatr_eq0 -lt0n fact_gt0.
-by field: factS_E.
-Qed.
 
-Lemma derive_taylor_sumS d n x :
+  (* unfold derivable.
+  apply/derivable1_diffP.
+Check differentiable_def.
+Search differentiable_def.
+Admitted. *)
+
+Local Notation "'T_' '(' d ';' n ')'" := (taylor_sum (f^`(d)) n a).
+
+Local Lemma derive_iterated_taylor_sumS (d n : nat) (x : R) :
   'D_1 T_(d; n.+1) x = T_(d.+1; n) x.
+Proof. by rw derive_taylor_sumS -derive1nS. Qed.
+
+Local Lemma cvg_taylor_sum (d n: nat) : T_(d; n) @ a --> f^`(d) a.
 Proof.
-rewrite /taylor_sum derive_sum.
-- move=> i.
-  exact: taylor_term_derivable.
-- rewrite big_ord_recl /= derive_taylor_term0 add0r fct_sumE.
-  apply: eq_bigr => i _.
-  by rewrite derive_taylor_termS.
+rw -(taylor_sum_center (f^`(d)) a n).
+apply: differentiable_continuous.
+apply/derivable1_diffP.
+exact: taylor_sum_derivable.
 Qed.
 
-Lemma cvg_taylor_sum d n : T_(d; n) @ a --> f^`(d) a.
+Local Definition taylor_remainder_peano (d n : nat) (x: R) :=
+  (f^`(d) x - T_(d;n) x) / (x - a)^+n.
+Local Notation "'h_' '(' d ';' n ')'" := (taylor_remainder_peano d n).
+
+Local Lemma taylor_remainder_peano_center (d n: nat) : h_(d; n) a = 0.
 Proof.
-have ct : T_(d; n) @ a --> T_(d; n) a.
-- exact/differentiable_continuous/derivable1_diffP/taylor_sum_derivable.
-by move: ct; rewrite taylor_sum_center.
+rw /taylor_remainder_peano.
+rw taylor_sum_center.
+by lra.
 Qed.
 
-Lemma taylor_quotient0 d x : h_(d; 0) x = f^`(d) x - f^`(d) a.
+Local Lemma cvg_iterated_derive_increment (d : nat) :
+  derivable (f^`(d)) a 1 ->
+  (f^`(d) (a + h) - f^`(d) a) / h @[h --> (0 : R)^'] --> f^`(d.+1) a.
 Proof.
-rewrite /taylor_quotient taylor_sum0.
-by rewrite expr0 divr1.
+move=> df.
+rw derive1nS derive1E.
+rw (_ : (fun h : R => (f^`(d) (a + h) - f^`(d) a) / h) =
+  (fun h : R => h^-1 *: ((f^`(d) \o shift a) (h *: 1) - f^`(d) a))).
+- apply/funext => h.
+  rw /comp /shift.
+  rw scaler1.
+  rw [h + a]addrC.
+  rw /GRing.scale /=.
+  by rw mulrC.
+exact: df.
 Qed.
 
-Lemma taylor_quotient_center d n : h_(d; n) a = 0.
+Local Lemma cvg_iterated_derive (d : nat) :
+  derivable (f^`(d)) a 1 ->
+  (f^`(d) x - f^`(d) a) / (x - a) @[x --> a^'] --> f^`(d.+1) a.
 Proof.
-rewrite /taylor_quotient taylor_sum_center.
-by rewrite subrr mul0r.
-Qed.
-
-Lemma taylor_center_in_range : a \in `]a - r, a + r[%R.
-Proof.
-rewrite in_itv /=.
-have rp := r_gt0.
-apply/andP.
-split.
-- by lra.
-- by lra.
-Qed.
-
-(* Induct on n with d + n <= k. L'Hopital transfers the limit of
-   h_{d;n+1} to that of h_{d+1;n} / (n+1). *)
-Lemma cvg_taylor_quotient d n : (d + n <= k)%N ->
-  h_(d; n) x @[x --> a^'] --> 0.
-Proof.
-elim: n d.
-- move=> d dk.
-  have cd : {for a, continuous (f^`(d))}.
-  + apply/differentiable_continuous/derivable1_diffP.
-    apply: F_Derivable.
-    * by move: dk; rewrite addn0.
-    * exact: taylor_center_in_range.
-  have -> : h_(d; 0) = (fun x => f^`(d) x - f^`(d) a).
-  + apply/funext => x.
-    exact: taylor_quotient0.
-  rewrite -[X in _ --> X](subrr (f^`(d) a)).
-  apply: cvgB.
-  + exact: cvg_within_filter cd.
-  + exact: cvg_cst.
-- move=> n IHn d dnk.
-  have dk : (d < k)%N.
-  + apply: leq_trans _ dnk.
-    by rewrite addnS ltnS leq_addr.
-  have cd : {for a, continuous (f^`(d))}.
-  + apply/differentiable_continuous/derivable1_diffP.
-    apply: F_Derivable.
-    * exact: ltnW dk.
-    * exact: taylor_center_in_range.
-  have cnum : (f^`(d) x - T_(d; n.+1) x) @[x --> a] --> 0.
-  + rewrite -[X in _ --> X](subrr (f^`(d) a)).
+move=> df.
+rw (_ : (fun x : R => (f^`(d) x - f^`(d) a) / (x - a)) =
+  (fun h => (f^`(d) (a + h) - f^`(d) a) / h) \o (fun x => x - a)).
+- apply: eq_fun => x.
+  rw /comp.
+  by rw subrKC.
+have shift_cvgr : x - a @[x --> a^'] --> (0 : R)^'.
+- rw /dnbhs.
+  apply/cvg_to_withinP.
+  split.
+  + rw -(subrr a).
     apply: cvgB.
-    * exact: cd.
-    * exact: cvg_taylor_sum.
-  have cden : (x - a)^+n.+1 @[x --> a] --> (0 : R).
-  + rewrite -[X in _ --> X](@expr0n R n.+1).
-    apply: (@continuous_cvg _ _ _ _ _ (fun x : R => x - a)
-      (fun y : R => y^+n.+1) 0).
-    * exact: exprn_continuous.
-    * rewrite -[X in _ --> X](subrr a).
-      apply: cvgB.
-      -- exact: cvg_id.
-      -- exact: cvg_cst.
-  have dnum (x : R) : x \in `]a - r, a + r[ `\ a ->
-      is_derive x 1 (f^`(d) - T_(d; n.+1))
-        (f^`(d.+1) x - T_(d.+1; n) x).
-  + rewrite inE.
-    move=> [xr xa].
-    apply: DeriveDef.
+    * exact: nbhs_dnbhs.
+    * exact: cvg_cst.
+  + apply: (filterS (P := fun x : R => x != a)).
+    * move=> x /=.
+      rw subr_eq0.
+      exact: id.
+    * exact: nbhs_dnbhs_neq a.
+apply: cvg_comp.
+- exact: shift_cvgr.
+- apply: cvg_iterated_derive_increment.
+  exact: df.
+Qed.
+
+(* A first-order remainder follows directly from differentiability. *)
+Local Lemma cvg_taylor_remainder_peano1 (d: nat) :
+  derivable (f^`(d)) a 1 -> h_(d; 1) x @[x --> a^'] --> 0.
+Proof.
+move=> df.
+apply: (@cvg_trans _
+  ((fun x : R => (f^`(d) x - f^`(d) a) / (x - a)
+                  - f^`(d.+1) a) @ a^')).
+- change ((h_(d; 1) @ a^') -->
+    ((fun x : R => (f^`(d) x - f^`(d) a) / (x - a)
+                    - f^`(d.+1) a) @ a^')).
+  apply: (near_eq_cvg
+    (f := fun x : R => (f^`(d) x - f^`(d) a) / (x - a) - f^`(d.+1) a)).
+  apply: (filterS (P := fun x : R => x - a != 0)).
+  + change (forall x : R, x - a != 0 ->
+      (f^`(d) x - f^`(d) a) / (x - a) - f^`(d.+1) a = h_(d; 1) x).
+    move=> x xa.
+    rw /taylor_remainder_peano.
+    rw taylor_sumS taylor_sum0.
+    rw /taylor_term !fctE.
+    rw derive1n1 -derive1nS.
+    rw factS fact0 /=.
+    rw !expr1.
+    by field.
+  + change (\forall x \near a^', x - a != 0).
+    apply: filterS (nbhs_dnbhs_neq a).
+    by move=> x; rw subr_eq0.
+- change ((fun x : R =>
+    (f^`(d) x - f^`(d) a) / (x - a) - f^`(d.+1) a) @ a^' --> (0 : R)).
+  rw -(subrr (f^`(d.+1) a)).
+  apply: cvgB.
+  + apply: cvg_iterated_derive.
+    exact: df.
+  + exact: cvg_cst.
+Qed.
+
+(* One L'Hopital step moves one derivative into the Taylor degree. *)
+Local Lemma cvg_taylor_remainder_peano_step (d n: nat) :
+  (\forall x \near a, derivable (f^`(d)) x 1) ->
+  h_(d.+1; n) x @[x --> a^'] --> 0 ->
+  h_(d; n.+1) x @[x --> a^'] --> 0.
+Proof.
+move=> fd cvg_next.
+move/nbhs_normP: (fd) => [r r_gt0 fd_ball].
+change (is_true (0 < r)) in r_gt0.
+have fd_itv (x: R) : x \in `]a - r, a + r[%R ->
+    derivable (f^`(d)) x 1.
+- move=> x_in_range.
+  apply: fd_ball.
+  rw /ball_ /=.
+  rw ltr_distlC.
+  move: x_in_range.
+  by rw in_itv /=.
+rw /taylor_remainder_peano.
+apply: (lhopital (a := a - r) (b := a + r)
+  (df := fun x => f^`(d.+1) x - T_(d.+1; n) x)
+  (dg := fun x => n.+1%:R * (x - a)^+n)).
+- rw in_itv /=.
+  by lra.
+- move=> x.
+  rw inE.
+  move=> [xr xa].
+  apply: DeriveDef.
+  + apply: derivableB.
+    * apply: fd_itv.
+      by rw inE.
+    * exact: taylor_sum_derivable.
+  + rw deriveB.
+    * apply: fd_itv.
+      by rw inE.
+    * exact: taylor_sum_derivable.
+    * rw -derive1E -derive1nS.
+      by rw derive_iterated_taylor_sumS.
+- move=> x _.
+  rw -(_: ((id - cst a)^+n.+1 : R -> R) =
+    (fun x => (x - a)^+n.+1)).
+  + apply/funext => y.
+    by rw !fctE.
+  apply: DeriveDef.
+  + apply: derivableX.
+    apply: derivableB.
+    * exact: derivable_id.
+    * exact: derivable_cst.
+  + rw deriveX.
     * apply: derivableB.
-      -- apply: F_Derivable (ltnW dk) _.
-         by rewrite inE.
-      -- exact: taylor_sum_derivable.
-    * rewrite deriveB.
-      -- apply: F_Derivable (ltnW dk) _.
-         by rewrite inE.
-      -- exact: taylor_sum_derivable.
-      -- rewrite -derive1E -derive1nS.
-         by rewrite derive_taylor_sumS.
-  have powerE : ((id - cst a)^+n.+1 : R -> R) =
-      (fun x => (x - a)^+n.+1).
-  + apply/funext => x.
-    by rewrite !fctE.
-  have dden (x : R) : is_derive x 1 (fun x => (x - a)^+n.+1)
-      (n.+1%:R * (x - a)^+n).
-  + rewrite -powerE.
-    apply: DeriveDef.
-    * apply: derivableX.
-      apply: derivableB.
       -- exact: derivable_id.
       -- exact: derivable_cst.
-    * rewrite deriveX.
-      -- apply: derivableB.
-         ++ exact: derivable_id.
-         ++ exact: derivable_cst.
-      -- rewrite deriveB ?derivable_id ?derivable_cst //.
-         rewrite derive_id derive_cst.
-         rewrite subr0 scaler1.
-         by rewrite !fctE.
-  have den_neq0 (x : R) : x \in `]a - r, a + r[ `\ a ->
-      n.+1%:R * (x - a)^+n != 0.
-  + rewrite inE.
-    move=> [_ xa].
-    rewrite mulf_neq0 ?pnatr_eq0 //.
-    apply: expf_neq0.
-    rewrite subr_eq0.
-    apply/eqP => xeq.
-    apply: xa.
-    by symmetry.
-  (* Its value at a is zero, so the induction hypothesis also gives
-     the unpunctured limit required by the library's L'Hopital lemma. *)
-  have q0 := taylor_quotient_center d.+1 n.
-  have ihfull : h_(d.+1; n) @ a --> 0.
-  + rewrite -q0.
-    apply/(continuous_withinNx _ _).2.
-    rewrite q0.
-    apply: IHn.
-    by rewrite addSn -addnS.
-  rewrite /taylor_quotient.
-  apply: (@lhopital R
-    (fun x => f^`(d) x - T_(d; n.+1) x)
-    (fun x => f^`(d.+1) x - T_(d.+1; n) x)
-    (fun x => (x - a)^+n.+1) (fun x => n.+1%:R * (x - a)^+n)
-    (a - r) (a + r) a 0).
-  + exact: taylor_center_in_range.
-  + exact: cnum.
-  + exact: cden.
-  + exact: den_neq0.
-  + have -> :
-        (fun x => (f^`(d.+1) x - T_(d.+1; n) x) /
-          (n.+1%:R * (x - a)^+n)) =
-        (fun x => n.+1%:R^-1 * h_(d.+1; n) x).
-    * apply/funext => x.
-      rewrite /taylor_quotient invfM.
-      by ring.
-    rewrite -(mulr0 n.+1%:R^-1).
-    exact: cvgMl_tmp ihfull.
+    * rw deriveB ?derivable_id ?derivable_cst //.
+      rw derive_id derive_cst.
+      rw subr0 scaler1.
+      by rw !fctE.
+- rw -(subrr (f^`(d) a)).
+  apply: cvgB.
+  + apply: differentiable_continuous.
+    apply/derivable1_diffP.
+    move: fd.
+    exact: nbhs_singleton.
+
+  + exact: cvg_taylor_sum.
+- rw -[X in _ --> X](@expr0n R n.+1).
+  change (((fun y : R => y^+n.+1) \o (fun x : R => x - a)) @ a -->
+    (0 : R)^+n.+1).
+  apply: continuous_cvg.
+  + exact: exprn_continuous.
+  + rw -[X in _ --> X](subrr a).
+    apply: cvgB.
+    * exact: cvg_id.
+    * exact: cvg_cst.
+- move=> x.
+  rw inE.
+  move=> [_ xa].
+  rw mulf_neq0 ?pnatr_eq0 //.
+  apply: expf_neq0.
+  change (x <> a) in xa.
+  by lra.
+- rw (_:
+      (fun x => (f^`(d.+1) x - T_(d.+1; n) x) /
+        (n.+1%:R * (x - a)^+n)) =
+      (fun x => n.+1%:R^-1 * h_(d.+1; n) x)).
+  + apply/funext => x.
+    rw /taylor_remainder_peano.
+    rw invfM.
+    by ring.
+  rw -(mulr0 n.+1%:R^-1).
+  apply: cvgMl_tmp.
+  exact: cvg_next.
+Qed.
+
+(* Repeated L'Hopital steps reduce the original remainder to h_(i; k-i). *)
+Local Lemma cvg_taylor_remainder_peano_iter (i: nat) :
+  (i < k)%N ->
+  h_(i; k - i) x @[x --> a^'] --> 0 ->
+  h_(0; k) x @[x --> a^'] --> 0.
+Proof.
+elim: i.
+- move=> _.
+  by rw subn0.
+- move=> i IHi i_lt_k cvg_next.
+  apply: IHi.
+  + by lia.
+  + rw -(subnSK (ltnW i_lt_k)).
+    apply: cvg_taylor_remainder_peano_step.
+    * apply: F_Derivable_Near.
+      by lia.
+    * exact: cvg_next.
+Qed.
+
+Local Lemma cvg_taylor_remainder_peano : h_(0; k) x @[x --> a^'] --> 0.
+Proof.
+apply: (cvg_taylor_remainder_peano_iter (i := k.-1)).
+- by lia.
+- rw (_ : (k - k.-1)%N = 1%N).
+  + by lia.
+  apply: cvg_taylor_remainder_peano1.
+  apply: F_Derivable.
 Qed.
 
 Theorem taylor_theorem :
-  exists h : R -> R,
-    (forall x : R, h x * (x - a)^+k =
-      f x - T_(0; k) x) /\
-    h x @[x --> a] --> 0.
+    (f x - taylor_sum f k a x) / (x - a)^+k @[x --> a] --> 0.
 Proof.
-exists h_(0; k).
-split.
-- move=> x.
-  case: (eqVneq x a).
-  + move=> ->.
-    rewrite taylor_quotient_center taylor_sum_center.
-    rewrite derive1n0.
-    by rewrite mul0r subrr.
-  + move=> xa.
-    have pow_neq0 : (x - a)^+k != 0.
-    * apply: expf_neq0.
-      by rewrite subr_eq0.
-    rewrite /taylor_quotient derive1n0.
-    by field.
-- have q0 := taylor_quotient_center 0 k.
-  rewrite -q0.
-  apply/(continuous_withinNx _ _).2.
-  rewrite q0.
-  apply: (cvg_taylor_quotient (d:=0)).
-  by rewrite add0n.
+rw -(taylor_remainder_peano_center 0 k).
+apply/(continuous_withinNx _ _).2.
+rw taylor_remainder_peano_center.
+exact: cvg_taylor_remainder_peano.
 Qed.
 
 End taylor_theorem.

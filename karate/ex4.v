@@ -106,3 +106,7 @@ Proof.
     (* cbn. *)
     (* lazy. *)
     cbv.
+    intros [not_hs1 | not_hs2] [hs1 hs2].
+    + exact (not_hs1 hs1).
+    + exact (not_hs2 hs2).
+Qed.
