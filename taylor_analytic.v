@@ -44,21 +44,21 @@ Theorem taylor_theorem2 (a x : R) :
 Proof.
 have [C H_C] := F_Analytic3 (minr x a) (maxr x a).
 exists (1 / C).
-rw div1r invr_gt0.
+rewrite div1r invr_gt0.
 move=> C_GT0.
-rw -div1r.
-rw ltr_pdivlMr.
+rewrite -div1r.
+rewrite ltr_pdivlMr.
 - exact: C_GT0.
-rw mulrC.
+rewrite mulrC.
 move=> xa_radius.
 
 pose X_n := fun n : nat => C * (C * `|x - a|)^+n.+1.
 have X_cvgr : X_n @\oo --> 0.
-- rw -(mulr0 C).
+- rewrite -(mulr0 C).
   apply: cvgMl_tmp.
-  rw cvg_shiftS.
+  rewrite cvg_shiftS.
   apply: cvg_expr.
-  rw ger0_norm.
+  rewrite ger0_norm.
   + have := normr_ge0 (x - a).
     by nra.
   by lra.
@@ -66,27 +66,27 @@ have X_cvgr : X_n @\oo --> 0.
 have remainder_range n :
     -X_n n <= f x - taylor_sum f n a x <= X_n n.
 - have [xi xi_in remainder_eq] :=
-    @taylor_remainder_lagrange R f n x (fun k _ => @F_Derivable k) a.
+    @taylor_remainder_lagrange R f n a x (fun k _ y _ => @F_Derivable k y).
   have fact_pos : 0 < (n.+1)`!%:R :> R.
-  + by rw ltr0n fact_gt0.
-  rw -ler_norml.
-  rw remainder_eq.
-  rw normrM normf_div normrX.
-  rw (gtr0_norm fact_pos).
-  rw /X_n.
-  rw exprMn.
-  rw mulrA -exprS.
+  + by rewrite ltr0n fact_gt0.
+  rewrite -ler_norml.
+  rewrite remainder_eq.
+  rewrite normrM normf_div normrX.
+  rewrite (gtr0_norm fact_pos).
+  rewrite /X_n.
+  rewrite exprMn.
+  rewrite mulrA -exprS.
   apply: ler_wpM2r.
   + apply: exprn_ge0.
     exact: normr_ge0.
-  rw ler_pdivrMr.
+  rewrite ler_pdivrMr.
   + exact: fact_pos.
   apply: H_C.
-  by rw inE.
+  by rewrite (minC x a) (maxC x a) inE.
 apply: squeeze_cvgr.
 - apply: nearW.
   exact: remainder_range.
-- rw -oppr0.
+- rewrite -oppr0.
   apply: cvgN.
   exact: X_cvgr.
 - exact: X_cvgr.

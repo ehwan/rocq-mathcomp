@@ -40,10 +40,10 @@ Local Abbreviation taylor_center_term :=
 Local Lemma taylor_center_sumE (k : nat) (a' : R) :
   (\sum_(i < k.+1) taylor_center_term i) a' = taylor_sum f k a' x.
 Proof.
-rw /taylor_sum.
-rw !fct_sumE.
+rewrite /taylor_sum.
+rewrite !fct_sumE.
 apply: eq_bigr => i _.
-by rw /taylor_term !fctE.
+by rewrite /taylor_term !fctE.
 Qed.
 
 Local Lemma taylor_center_term_derivable (k : nat) (a' : R) :
@@ -68,8 +68,8 @@ Local Lemma remainder_derivate (a': R) :
     (- f^`(n.+1) * cst n`!%:R^-1 * (cst x - id)^+n) a'.
 Proof.
 move=> a_in.
-rw derive1E //=.
-rw deriveB.
+rewrite derive1E //=.
+rewrite deriveB.
 - by apply: derivable_cst.
 - apply: derivable_sum.
   move=> i.
@@ -77,13 +77,13 @@ rw deriveB.
   move: (ltn_ord i).
   by lia.
 exact: a_in.
-rw derive_cst.
-rw sub0r.
-rw !fctE.
+rewrite derive_cst.
+rewrite sub0r.
+rewrite !fctE.
 apply: oppr_inj.
-rw !mulNr.
-rw !opprK.
-rw derive_sum.
+rewrite !mulNr.
+rewrite !opprK.
+rewrite derive_sum.
 - move=> i.
   apply: taylor_center_term_derivable.
   move: (ltn_ord i).
@@ -91,7 +91,7 @@ rw derive_sum.
 exact: a_in.
 under eq_bigr.
   move=> i _.
-  rw deriveM.
+  rewrite deriveM.
   - apply: derivableM.
     + apply: F_Derivable.
       move: (ltn_ord i).
@@ -103,47 +103,47 @@ under eq_bigr.
     + by apply: derivable_cst.
     + by apply: derivable_id.
 
-  rw deriveX.
+  rewrite deriveX.
   - apply: derivableB.
     + by apply: derivable_cst.
     + by apply: derivable_id.
 
-  rw deriveB.
+  rewrite deriveB.
   - by apply: derivable_cst.
   - by apply: derivable_id.
 
-  rw derive_cst.
-  rw derive_id.
+  rewrite derive_cst.
+  rewrite derive_id.
 
-  rw deriveM.
+  rewrite deriveM.
   - apply: F_Derivable.
     move: (ltn_ord i).
     by lia.
     exact: a_in.
   - by apply: derivable_cst.
-  rw derive_cst.
+  rewrite derive_cst.
 
-  rw -derive1E.
-  rw -derive1nS.
+  rewrite -derive1E.
+  rewrite -derive1nS.
 
-  rw !/cst.
-  rw !fctE /=.
-  rw /GRing.scale /=.
+  rewrite !/cst.
+  rewrite !fctE /=.
+  rewrite /GRing.scale /=.
   over.
 simpl.
 
 elim: n.
-- rw big_ord1 //=.
-  rw !fact0 !expr0.
-  rw invr1.
+- rewrite big_ord1 //=.
+  rewrite !fact0 !expr0.
+  rewrite invr1.
   by ring.
 - move=> m.
   move=> IH.
-  rw big_ord_recr //=.
-  rw IH.
-  rw -derive1nS.
-  rw factS.
-  rw natrM.
+  rewrite big_ord_recr //=.
+  rewrite IH.
+  rewrite -derive1nS.
+  rewrite factS.
+  rewrite natrM.
   by field.
 Qed.
 
@@ -154,11 +154,11 @@ Proof.
 case: (eqVneq x a).
 - move=> ->.
   exists a.
-  + rw /minr /maxr ltxx.
-    rw in_itv /=.
+  + rewrite /minr /maxr ltxx.
+    rewrite in_itv /=.
     by lra.
-  + rw taylor_sum_center.
-    rw !subrr expr0n /=.
+  + rewrite taylor_sum_center.
+    rewrite !subrr expr0n /=.
     by lra.
 move=> x_neq_a.
 (* wlog: /(x<a).
@@ -185,33 +185,33 @@ have P_derivable b : derivable P b 1.
   exact: base_derivable.
 have dG b : (b \in taylor_interval) -> 'D_1 G b = - f^`(n.+1) b * n`!%:R^-1 * (x - b)^+n.
 - move=> b_in.
-  rw -derive1E.
-  rw /G.
-  rw remainder_derivate.
+  rewrite -derive1E.
+  rewrite /G.
+  rewrite remainder_derivate.
   + exact: b_in.
-  + by rw !fctE.
+  + by rewrite !fctE.
 have dP b : (b \in taylor_interval) -> 'D_1 P b = - (n.+1%:R * (x - b)^+n).
 - move=> b_in.
-  rw /P.
-  rw deriveX.
+  rewrite /P.
+  rewrite deriveX.
   + exact: base_derivable.
-  rw deriveB.
+  rewrite deriveB.
   + exact: derivable_cst.
   + exact: derivable_id.
-  rw derive_cst derive_id.
-  rw !fctE.
-  rw /GRing.scale /=.
+  rewrite derive_cst derive_id.
+  rewrite !fctE.
+  rewrite /GRing.scale /=.
   by ring.
 have min_lt_max : minr a x < maxr a x.
-- rw /minr /maxr.
+- rewrite /minr /maxr.
   case: ifP => // ax.
-  by rw lt_neqAle x_neq_a leNgt ax.
+  by rewrite lt_neqAle x_neq_a leNgt ax.
 have sub_neq b : b \in `]minr a x, maxr a x[%R -> x - b != 0.
-- rw subr_eq0 => b_in.
+- rewrite subr_eq0 => b_in.
   apply/eqP => xb.
   move: b_in.
-  by rw -xb in_itv /= gt_min lt_max ltxx !orbF lt_asym.
-have succ_neq : n.+1%:R != 0 :> R by rw pnatr_eq0.
+  by rewrite -xb in_itv /= gt_min lt_max ltxx !orbF lt_asym.
+have succ_neq : n.+1%:R != 0 :> R by rewrite pnatr_eq0.
 have [xi xi_in ratio] :
     exists2 xi : R, xi \in `]minr a x, maxr a x[%R &
       'D_1 G xi / 'D_1 P xi =
@@ -227,28 +227,28 @@ have [xi xi_in ratio] :
     exact: b_in.
   + by move=> b _; apply: derivableP; exact: P_derivable.
   + move=> b b_in.
-    rw (dP b (subset_itv_oo_cc b_in)) oppr_eq0.
+    rewrite (dP b (subset_itv_oo_cc b_in)) oppr_eq0.
     exact: mulf_neq0 succ_neq (expf_neq0 n (sub_neq b b_in)).
 have xi_in_closed : xi \in taylor_interval := subset_itv_oo_cc xi_in.
 have derivative_ratio :
     'D_1 G xi / 'D_1 P xi = f^`(n.+1) xi / (n.+1)`!%:R.
-- rw (dG xi xi_in_closed) (dP xi xi_in_closed) factS natrM.
-  have fact_neq : n`!%:R != 0 :> R by rw pnatr_eq0 -lt0n fact_gt0.
+- rewrite (dG xi xi_in_closed) (dP xi xi_in_closed) factS natrM.
+  have fact_neq : n`!%:R != 0 :> R by rewrite pnatr_eq0 -lt0n fact_gt0.
   have xi_power_neq : (x - xi)^+n != 0 := expf_neq0 n (sub_neq xi xi_in).
   by field.
 have endpoint_ratio :
     (G (maxr a x) - G (minr a x)) / (P (maxr a x) - P (minr a x)) =
     (G a - G x) / (P a - P x).
-- rw /minr /maxr.
+- rewrite /minr /maxr.
   case: ifP => // _.
-  by rw -[G x - G a]opprB -[P x - P a]opprB divrNN.
+  by rewrite -[G x - G a]opprB -[P x - P a]opprB divrNN.
 have power_neq : (x - a)^+n.+1 != 0.
 - apply: expf_neq0.
-  by rw subr_eq0.
+  by rewrite subr_eq0.
 exists xi => //.
-rw -derivative_ratio ratio endpoint_ratio /G /P.
-rw !fctE !taylor_center_sumE taylor_sum_center !subrr expr0n /=.
-by rw !subr0 divfK.
+rewrite -derivative_ratio ratio endpoint_ratio /G /P.
+rewrite !fctE !taylor_center_sumE taylor_sum_center !subrr expr0n /=.
+by rewrite !subr0 divfK.
 Qed.
 
 End remainder.

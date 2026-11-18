@@ -46,31 +46,31 @@ Qed.
 
 Lemma taylor_term0 (x : R) : t_(0) x = f a.
 Proof.
-rw /taylor_term !fctE.
-rw derive1n0.
-rw fact0 expr0.
+rewrite /taylor_term !fctE.
+rewrite derive1n0.
+rewrite fact0 expr0.
 by field.
 Qed.
 
 Lemma taylor_sum0 (x : R) : T_(0) x = f a.
 Proof.
-rw /taylor_sum.
-rw big_ord1.
+rewrite /taylor_sum.
+rewrite big_ord1.
 exact: taylor_term0.
 Qed.
 
 Lemma taylor_term_centerS (n : nat) : t_(n.+1) a = 0.
 Proof.
-rw /taylor_term !fctE.
-rw subrr expr0n /=.
+rewrite /taylor_term !fctE.
+rewrite subrr expr0n /=.
 by ring.
 Qed.
 
 Lemma taylor_sumS (n : nat) (x : R) :
   T_(n.+1) x = T_(n) x + t_(n.+1) x.
 Proof.
-rw /taylor_sum.
-by rw big_ord_recr /=.
+rewrite /taylor_sum.
+by rewrite big_ord_recr /=.
 Qed.
 
 Lemma taylor_sum_center (n : nat) : T_(n) a = f a.
@@ -78,15 +78,15 @@ Proof.
 elim: n.
 - exact: taylor_sum0.
 - move=> n IH.
-  rw taylor_sumS.
-  rw IH.
-  rw taylor_term_centerS.
+  rewrite taylor_sumS.
+  rewrite IH.
+  rewrite taylor_term_centerS.
   by ring.
 Qed.
 
 Lemma derive_taylor_term0 (x : R) : 'D_1 t_(0) x = 0.
 Proof.
-rw (_: t_(0) = cst (f a)).
+rewrite (_: t_(0) = cst (f a)).
 - apply: eq_fun => x'.
   exact: taylor_term0.
 exact: derive_cst.
@@ -95,8 +95,8 @@ Qed.
 Lemma derive_taylor_termS (n : nat) (x : R) :
   'D_1 t_(n.+1) x = taylor_term (f^`()) n a x.
 Proof.
-rw /taylor_term.
-rw deriveM.
+rewrite /taylor_term.
+rewrite deriveM.
 - apply: derivableM.
   + exact: derivable_cst.
   + exact: derivable_cst.
@@ -104,42 +104,42 @@ rw deriveM.
   apply: derivableB.
   + exact: derivable_id.
   + exact: derivable_cst.
-rw deriveX //.
-rw deriveB.
+rewrite deriveX //.
+rewrite deriveB.
 - exact: derivable_id.
 - exact: derivable_cst.
-rw !derive_id !derive_cst.
-rw deriveM.
+rewrite !derive_id !derive_cst.
+rewrite deriveM.
 - exact: derivable_cst.
 - exact: derivable_cst.
-rw !derive_cst.
-rw !fctE.
-rw derive1Sn.
-rw /GRing.scale //=.
-rw factS.
-rw natrM.
+rewrite !derive_cst.
+rewrite !fctE.
+rewrite derive1Sn.
+rewrite /GRing.scale //=.
+rewrite factS.
+rewrite natrM.
 by field.
 Qed.
 
 Lemma derive_taylor_sum0 (x : R) : 'D_1 T_(0) x = 0.
 Proof.
-rw /taylor_sum.
-rw big_ord1.
+rewrite /taylor_sum.
+rewrite big_ord1.
 exact: derive_taylor_term0.
 Qed.
 
 Lemma derive_taylor_sumS (n : nat) (x : R) :
   'D_1 T_(n.+1) x = taylor_sum (f^`()) n a x.
 Proof.
-rw /taylor_sum.
-rw derive_sum.
+rewrite /taylor_sum.
+rewrite derive_sum.
 - move=> i.
   exact: taylor_term_derivable.
-- rw big_ord_recl /=.
-  rw derive_taylor_term0 add0r.
-  rw fct_sumE.
+- rewrite big_ord_recl /=.
+  rewrite derive_taylor_term0 add0r.
+  rewrite fct_sumE.
   apply: eq_bigr => i _.
-  by rw derive_taylor_termS.
+  by rewrite derive_taylor_termS.
 Qed.
 
 End taylor_polynomial.

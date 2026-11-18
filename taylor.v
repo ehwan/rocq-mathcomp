@@ -48,7 +48,7 @@ elim: d.
   have FD2:= (@F_Derivable 1 kgt1).
   move: FD2.
 
-  rw /derivable. *)
+  rewrite /derivable. *)
   (* exists f^`(1) (near a)  -->  derivable f^`(0) (near a) ? *)
 
   (* (derivable f^`(1) a 1) -> (derivable f^`(0) x 1).
@@ -71,11 +71,11 @@ Local Notation "'T_' '(' d ';' n ')'" := (taylor_sum (f^`(d)) n a).
 
 Local Lemma derive_iterated_taylor_sumS (d n : nat) (x : R) :
   'D_1 T_(d; n.+1) x = T_(d.+1; n) x.
-Proof. by rw derive_taylor_sumS -derive1nS. Qed.
+Proof. by rewrite derive_taylor_sumS -derive1nS. Qed.
 
 Local Lemma cvg_taylor_sum (d n: nat) : T_(d; n) @ a --> f^`(d) a.
 Proof.
-rw -(taylor_sum_center (f^`(d)) a n).
+rewrite -(taylor_sum_center (f^`(d)) a n).
 apply: differentiable_continuous.
 apply/derivable1_diffP.
 exact: taylor_sum_derivable.
@@ -87,8 +87,8 @@ Local Notation "'h_' '(' d ';' n ')'" := (taylor_remainder_peano d n).
 
 Local Lemma taylor_remainder_peano_center (d n: nat) : h_(d; n) a = 0.
 Proof.
-rw /taylor_remainder_peano.
-rw taylor_sum_center.
+rewrite /taylor_remainder_peano.
+rewrite taylor_sum_center.
 by lra.
 Qed.
 
@@ -97,15 +97,15 @@ Local Lemma cvg_iterated_derive_increment (d : nat) :
   (f^`(d) (a + h) - f^`(d) a) / h @[h --> (0 : R)^'] --> f^`(d.+1) a.
 Proof.
 move=> df.
-rw derive1nS derive1E.
-rw (_ : (fun h : R => (f^`(d) (a + h) - f^`(d) a) / h) =
+rewrite derive1nS derive1E.
+rewrite (_ : (fun h : R => (f^`(d) (a + h) - f^`(d) a) / h) =
   (fun h : R => h^-1 *: ((f^`(d) \o shift a) (h *: 1) - f^`(d) a))).
 - apply/funext => h.
-  rw /comp /shift.
-  rw scaler1.
-  rw [h + a]addrC.
-  rw /GRing.scale /=.
-  by rw mulrC.
+  rewrite /comp /shift.
+  rewrite scaler1.
+  rewrite [h + a]addrC.
+  rewrite /GRing.scale /=.
+  by rewrite mulrC.
 exact: df.
 Qed.
 
@@ -114,22 +114,22 @@ Local Lemma cvg_iterated_derive (d : nat) :
   (f^`(d) x - f^`(d) a) / (x - a) @[x --> a^'] --> f^`(d.+1) a.
 Proof.
 move=> df.
-rw (_ : (fun x : R => (f^`(d) x - f^`(d) a) / (x - a)) =
+rewrite (_ : (fun x : R => (f^`(d) x - f^`(d) a) / (x - a)) =
   (fun h => (f^`(d) (a + h) - f^`(d) a) / h) \o (fun x => x - a)).
 - apply: eq_fun => x.
-  rw /comp.
-  by rw subrKC.
+  rewrite /comp.
+  by rewrite subrKC.
 have shift_cvgr : x - a @[x --> a^'] --> (0 : R)^'.
-- rw /dnbhs.
+- rewrite /dnbhs.
   apply/cvg_to_withinP.
   split.
-  + rw -(subrr a).
+  + rewrite -(subrr a).
     apply: cvgB.
     * exact: nbhs_dnbhs.
     * exact: cvg_cst.
   + apply: (filterS (P := fun x : R => x != a)).
     * move=> x /=.
-      rw subr_eq0.
+      rewrite subr_eq0.
       exact: id.
     * exact: nbhs_dnbhs_neq a.
 apply: cvg_comp.
@@ -155,19 +155,19 @@ apply: (@cvg_trans _
   + change (forall x : R, x - a != 0 ->
       (f^`(d) x - f^`(d) a) / (x - a) - f^`(d.+1) a = h_(d; 1) x).
     move=> x xa.
-    rw /taylor_remainder_peano.
-    rw taylor_sumS taylor_sum0.
-    rw /taylor_term !fctE.
-    rw derive1n1 -derive1nS.
-    rw factS fact0 /=.
-    rw !expr1.
+    rewrite /taylor_remainder_peano.
+    rewrite taylor_sumS taylor_sum0.
+    rewrite /taylor_term !fctE.
+    rewrite derive1n1 -derive1nS.
+    rewrite factS fact0 /=.
+    rewrite !expr1.
     by field.
   + change (\forall x \near a^', x - a != 0).
     apply: filterS (nbhs_dnbhs_neq a).
-    by move=> x; rw subr_eq0.
+    by move=> x; rewrite subr_eq0.
 - change ((fun x : R =>
     (f^`(d) x - f^`(d) a) / (x - a) - f^`(d.+1) a) @ a^' --> (0 : R)).
-  rw -(subrr (f^`(d.+1) a)).
+  rewrite -(subrr (f^`(d.+1) a)).
   apply: cvgB.
   + apply: cvg_iterated_derive.
     exact: df.
@@ -187,49 +187,49 @@ have fd_itv (x: R) : x \in `]a - r, a + r[%R ->
     derivable (f^`(d)) x 1.
 - move=> x_in_range.
   apply: fd_ball.
-  rw /ball_ /=.
-  rw ltr_distlC.
+  rewrite /ball_ /=.
+  rewrite ltr_distlC.
   move: x_in_range.
-  by rw in_itv /=.
-rw /taylor_remainder_peano.
+  by rewrite in_itv /=.
+rewrite /taylor_remainder_peano.
 apply: (lhopital (a := a - r) (b := a + r)
   (df := fun x => f^`(d.+1) x - T_(d.+1; n) x)
   (dg := fun x => n.+1%:R * (x - a)^+n)).
-- rw in_itv /=.
+- rewrite in_itv /=.
   by lra.
 - move=> x.
-  rw inE.
+  rewrite inE.
   move=> [xr xa].
   apply: DeriveDef.
   + apply: derivableB.
     * apply: fd_itv.
-      by rw inE.
+      by rewrite inE.
     * exact: taylor_sum_derivable.
-  + rw deriveB.
+  + rewrite deriveB.
     * apply: fd_itv.
-      by rw inE.
+      by rewrite inE.
     * exact: taylor_sum_derivable.
-    * rw -derive1E -derive1nS.
-      by rw derive_iterated_taylor_sumS.
+    * rewrite -derive1E -derive1nS.
+      by rewrite derive_iterated_taylor_sumS.
 - move=> x _.
-  rw -(_: ((id - cst a)^+n.+1 : R -> R) =
+  rewrite -(_: ((id - cst a)^+n.+1 : R -> R) =
     (fun x => (x - a)^+n.+1)).
   + apply/funext => y.
-    by rw !fctE.
+    by rewrite !fctE.
   apply: DeriveDef.
   + apply: derivableX.
     apply: derivableB.
     * exact: derivable_id.
     * exact: derivable_cst.
-  + rw deriveX.
+  + rewrite deriveX.
     * apply: derivableB.
       -- exact: derivable_id.
       -- exact: derivable_cst.
-    * rw deriveB ?derivable_id ?derivable_cst //.
-      rw derive_id derive_cst.
-      rw subr0 scaler1.
-      by rw !fctE.
-- rw -(subrr (f^`(d) a)).
+    * rewrite deriveB ?derivable_id ?derivable_cst //.
+      rewrite derive_id derive_cst.
+      rewrite subr0 scaler1.
+      by rewrite !fctE.
+- rewrite -(subrr (f^`(d) a)).
   apply: cvgB.
   + apply: differentiable_continuous.
     apply/derivable1_diffP.
@@ -237,31 +237,31 @@ apply: (lhopital (a := a - r) (b := a + r)
     exact: nbhs_singleton.
 
   + exact: cvg_taylor_sum.
-- rw -[X in _ --> X](@expr0n R n.+1).
+- rewrite -[X in _ --> X](@expr0n R n.+1).
   change (((fun y : R => y^+n.+1) \o (fun x : R => x - a)) @ a -->
     (0 : R)^+n.+1).
   apply: continuous_cvg.
   + exact: exprn_continuous.
-  + rw -[X in _ --> X](subrr a).
+  + rewrite -[X in _ --> X](subrr a).
     apply: cvgB.
     * exact: cvg_id.
     * exact: cvg_cst.
 - move=> x.
-  rw inE.
+  rewrite inE.
   move=> [_ xa].
-  rw mulf_neq0 ?pnatr_eq0 //.
+  rewrite mulf_neq0 ?pnatr_eq0 //.
   apply: expf_neq0.
   change (x <> a) in xa.
   by lra.
-- rw (_:
+- rewrite (_:
       (fun x => (f^`(d.+1) x - T_(d.+1; n) x) /
         (n.+1%:R * (x - a)^+n)) =
       (fun x => n.+1%:R^-1 * h_(d.+1; n) x)).
   + apply/funext => x.
-    rw /taylor_remainder_peano.
-    rw invfM.
+    rewrite /taylor_remainder_peano.
+    rewrite invfM.
     by ring.
-  rw -(mulr0 n.+1%:R^-1).
+  rewrite -(mulr0 n.+1%:R^-1).
   apply: cvgMl_tmp.
   exact: cvg_next.
 Qed.
@@ -274,11 +274,11 @@ Local Lemma cvg_taylor_remainder_peano_iter (i: nat) :
 Proof.
 elim: i.
 - move=> _.
-  by rw subn0.
+  by rewrite subn0.
 - move=> i IHi i_lt_k cvg_next.
   apply: IHi.
   + by lia.
-  + rw -(subnSK (ltnW i_lt_k)).
+  + rewrite -(subnSK (ltnW i_lt_k)).
     apply: cvg_taylor_remainder_peano_step.
     * apply: F_Derivable_Near.
       by lia.
@@ -289,7 +289,7 @@ Local Lemma cvg_taylor_remainder_peano : h_(0; k) x @[x --> a^'] --> 0.
 Proof.
 apply: (cvg_taylor_remainder_peano_iter (i := k.-1)).
 - by lia.
-- rw (_ : (k - k.-1)%N = 1%N).
+- rewrite (_ : (k - k.-1)%N = 1%N).
   + by lia.
   apply: cvg_taylor_remainder_peano1.
   apply: F_Derivable.
@@ -298,9 +298,9 @@ Qed.
 Theorem taylor_theorem :
     (f x - taylor_sum f k a x) / (x - a)^+k @[x --> a] --> 0.
 Proof.
-rw -(taylor_remainder_peano_center 0 k).
+rewrite -(taylor_remainder_peano_center 0 k).
 apply/(continuous_withinNx _ _).2.
-rw taylor_remainder_peano_center.
+rewrite taylor_remainder_peano_center.
 exact: cvg_taylor_remainder_peano.
 Qed.
 
