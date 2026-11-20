@@ -251,4 +251,19 @@ rewrite !fctE !taylor_center_sumE taylor_sum_center !subrr expr0n /=.
 by rewrite !subr0 divfK.
 Qed.
 
+Lemma taylor_expansion (M : R)
+    (derivative_bound : {in taylor_interval, forall s : R, `|f^`(n.+1) s| <= M}) :
+  `|f x - taylor_sum f n a x| <= M * `|x - a| ^+ n.+1.
+Proof.
+have [xi hxi ->] := taylor_remainder_lagrange.
+rewrite normrM normf_div normrX.
+apply: ler_wpM2r.
+- exact: exprn_ge0 (normr_ge0 _).
+have hf : 1 <= n.+1`!%:R :> R by rewrite ler1n fact_gt0.
+rewrite normr_nat ler_pdivrMr ?ltr0n ?fact_gt0 //.
+have bound := derivative_bound xi hxi.
+have hM := le_trans (normr_ge0 _) bound.
+by nra.
+Qed.
+
 End remainder.

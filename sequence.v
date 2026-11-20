@@ -5,7 +5,8 @@ From mathcomp Require Import sesquilinear.
 #[warning="-warn-library-file-internal-analysis"]
 From mathcomp Require Import unstable.
 From mathcomp Require Import boolp contra classical_sets functions reals.
-From mathcomp Require Import topology tvs normedtype landau derive sequences realfun.
+From mathcomp Require Import topology tvs normedtype landau derive sequences
+  realfun exp.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -115,3 +116,45 @@ apply: squeeze_cvgr.
 Qed.
 
 End sequence.
+
+(* Uniform-step discrete Gronwall bound for a cubic one-step error. *)
+Lemma discrete_gronwall_order2 (R : realType) (E : nat -> R) (h L K T : R)
+    (hpos : 0 < h) (Lpos : 0 < L) (K0 : 0 <= K) (initial : E 0%N = 0)
+    (step : forall i : nat, i.+1%:R * h <= T ->
+       E i.+1 <= (1 + h * L) * E i + K * h ^+ 3) :
+  forall n : nat, n%:R * h <= T ->
+    E n <= (K / L) * (expR (L * T) - 1) * h ^+ 2.
+Proof.
+pose r := 1 + h * L.
+pose B := (K / L) * h ^+ 2.
+have r0 : 0 <= r by rewrite /r; nra.
+have B0 : 0 <= B := mulr_ge0 (divr_ge0 K0 (ltW Lpos)) (sqr_ge0 h).
+have shift : (r - 1) * B = K * h ^+ 3.
+- rewrite /r /B.
+  have Lnz : L != 0 by rewrite gt_eqF.
+  by field.
+(* The geometric bound is E_n <= B * (r^n - 1). *)
+have geom n : n%:R * h <= T -> E n + B <= r ^+ n * B.
+- elim: n.
+  + move=> _.
+    rewrite initial add0r.
+    by rewrite expr0 mul1r.
+  + move=> i IH ti.
+    have ti' : i%:R * h <= T.
+    * move: ti.
+      rewrite -nat1r.
+      by lra.
+    have rec := step i ti.
+    rewrite -/r in rec.
+    have scaled := ler_wpM2l r0 (IH ti').
+    rewrite exprS.
+    by nra.
+move=> n tn.
+have pow_le : r ^+ n <= expR (L * T).
+- apply: le_trans (lerXn2r n r0 (expR_ge0 _) (expR_ge1Dx (h * L))) _.
+  rewrite -expRM_natl ler_expR.
+  by nra.
+have exp_bound := le_trans (geom n tn) (ler_wpM2r B0 pow_le).
+rewrite /B in exp_bound.
+by nra.
+Qed.

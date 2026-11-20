@@ -25,7 +25,7 @@ Local Open Scope classical_set_scope.
 
 (* Open Set D *)
 (* forall compact set K=[a,b] \subset D *)
-Definition analytic_derivative_bound (R : realType) (f : R -> R) (a b : R) :=
+Definition analytic_derivative_bound_on_interval (R : realType) (f : R -> R) (a b : R) :=
   exists C : R,
     forall (k : nat), {in `[a, b], forall (x : R),
       `|f^`(k) x| <= C^+k.+1 * k`!%:R}.
@@ -34,7 +34,7 @@ Section analytic.
 Context (R : realType).
 Context (f : R -> R).
 Context (F_Derivable : forall (k : nat) (x : R), derivable (derive1n k f) x 1).
-Context (F_Analytic3 : forall (a b : R), analytic_derivative_bound f a b).
+Context (F_Analytic3 : forall (a b : R), analytic_derivative_bound_on_interval f a b).
 
 (* C * |x - a| < 1 *)
 Theorem taylor_theorem2 (a x : R) :
