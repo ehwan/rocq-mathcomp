@@ -1,11 +1,7 @@
 From HB Require Import structures.
-From mathcomp Require Import boot order ssralg ssrnum matrix interval
-  interval_inference.
-From mathcomp Require Import sesquilinear.
-#[warning="-warn-library-file-internal-analysis"]
-From mathcomp Require Import unstable.
-From mathcomp Require Import boolp contra classical_sets functions reals.
-From mathcomp Require Import topology tvs normedtype derive sequences realfun exp.
+From mathcomp Require Import boot order ssralg ssrnum interval interval_inference.
+From mathcomp Require Import boolp classical_sets reals.
+From mathcomp Require Import normedtype derive sequences exp.
 
 Require Import taylor_poly taylor_remainder.
 Require sequence.
@@ -13,10 +9,8 @@ Require sequence.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
-Import Order.TTheory GRing.Theory Num.Theory.
+Import Order.TTheory GRing.Theory Num.Def Num.Theory.
 Import numFieldNormedType.Exports.
-
-Import Num.Def Num.Theory.
 
 From mathcomp Require Import ring_tactic field_tactic arithmetic_tactic.
 From mathcomp Require Import zify.
@@ -24,7 +18,8 @@ From mathcomp Require Import zify.
 Local Open Scope ring_scope.
 Local Open Scope classical_set_scope.
 
-Abbreviation discrete_gronwall_order2 := sequence.discrete_gronwall_order2.
+HB.lock Definition my_derive1n := @derive1n.
+Canonical locked_derive1n := Unlockable my_derive1n.unlock.
 
 Section RK.
 
@@ -49,7 +44,7 @@ Local Abbreviation q := (rk2_q coeffs).
 Context (f : R -> R -> R) (x0 : R).
 
 Section Method.
-Context (h : R).
+Context (h : R). (* dt *)
 
 Let t_n (n : nat) := n%:R * h.
 
@@ -60,6 +55,7 @@ Definition rk2_slope (t x1 : R) : R :=
 
 Definition rk2_step (t x1 : R) : R := x1 + h * rk2_slope t x1.
 
+(* X_n *)
 Fixpoint rk2 (n : nat) : R :=
   match n with
   | O => x0
@@ -75,20 +71,23 @@ Context (T_pos : 0 < T) (x_initial : x 0 = x0).
 
 (* MathComp differentiates a total function; the solution hypotheses and
    estimates concern its restriction to the physical time interval. *)
-Local Abbreviation time_interval := (`[0, T]%R).
+Local Abbreviation time_interval := (`[0, T]%R). (* domain for x(t) *)
 Let ft (t x1 : R) := (fun s => f s x1)^`(1) t.
 Let fx (t x1 : R) := (f t)^`(1) x1.
 
 Definition Phi (h t x1 : R) :=
   f t x1 + h / 2 * (ft t x1 + f t x1 * fx t x1).
 
-Context (x_ode : {in time_interval, forall t : R, x^`(1) t = f t (x t)}).
+
+Context (x_ode : {in time_interval, forall t : R, x^`() t = f t (x t)}).
+Context (f_x_domain: interval R).
+Context (f_t_domain: interval R).
 Context (x_derivable : forall k : nat, (k <= 2)%N ->
   {in time_interval, forall t : R, derivable x^`(k) t 1}).
 Context (f_derivable_in_t : forall (x1 : R) (k : nat), (k <= 1)%N ->
   forall t : R, derivable (fun s => f s x1)^`(k) t 1).
 Context (f_derivable_in_x : forall (t : R) (k : nat), (k <= 1)%N ->
-  forall x1 : R, derivable (f t)^`(k) x1 1).
+  forall x1 : R, derivable (my_derive1n k (f t)) x1 1).
 Context (ft_derivable_in_x : forall t x1 : R, derivable (ft t) x1 1).
 
 Let ftt (t x1 : R) := (fun s => f s x1)^`(2) t.
@@ -97,13 +96,21 @@ Let fxx (t x1 : R) := (f t)^`(2) x1.
 
 (* The stage points may lie outside the solution interval. *)
 Context (M_f M_tt M_tx M_xx : R).
-Context (f_bound : forall t x1, `|f t x1| <= M_f).
-Context (ftt_bound : forall t x1, `|ftt t x1| <= M_tt).
-Context (ftx_bound : forall t x1, `|ftx t x1| <= M_tx).
-Context (fxx_bound : forall t x1, `|fxx t x1| <= M_xx).
+Context (f_bound : {in f_t_domain, forall t:R, {in f_x_domain, forall x1:R, `|f t x1| <= M_f}}).
+Context (ftt_bound : {in f_t_domain, forall t:R, {in f_x_domain, forall x1:R, `|ftt t x1| <= M_tt}}).
+Context (ftx_bound : {in f_t_domain, forall t:R, {in f_x_domain, forall x1:R, `|ftx t x1| <= M_tx}}).
+Context (fxx_bound : {in f_t_domain, forall t:R, {in f_x_domain, forall x1:R, `|fxx t x1| <= M_xx}}).
+(* Context (fxx_bound : forall t x1, `|fxx t x1| <= M_xx). *)
 
+(* use f *)
 Context (M_3 : R).
 Context (x3_bound : {in time_interval, forall t : R, `|x^`(3) t| <= M_3}).
+(* 
+x'' = f_t + f*fx
+
+x''' = f_tt + f_t*f_x + f*f_tx
+
+Let M_3 := M_tt + M *)
 
 (* Derived bounds used in the RK2 error estimates. *)
 Let M_x := 2 * M_f + M_xx.
@@ -113,30 +120,31 @@ Let Phi_constant := M_x + T / 2 * (M_tx + M_x ^+ 2 + M_f * M_xx).
 Let exact_constant := M_3 + (M_x * M_x2 + stage_constant) / 4.
 
 (* Taylor expansion at s + 1 bounds the first derivative on the real line. *)
-Local Lemma derivative_bound_of_function_second_bound (g : R -> R) (B M s : R) :
-  (forall k : nat, (k <= 1)%N -> forall u : R, derivable g^`(k) u 1) ->
-  (forall u : R, `|g u| <= B) -> (forall u : R, `|g^`(2) u| <= M) ->
-  `|g^`(1) s| <= 2 * B + M.
+Local Lemma fx_bound (t x1 : R) : t \in f_t_domain -> x1 \in f_x_domain -> 
+    `|fx t x1| <= M_x.
 Proof.
-move=> dg bg d2g.
-have rem := taylor_expansion (f := g) (n := 1) (a := s) (x := s + 1)
-  (fun k hk u _ => dg k hk u) (fun u _ => d2g u).
+Admitted.
+(* move=> t_in x_in.
+
+have rem : `|f t (x1 + 1) - taylor_sum (f t) 1 x1 (x1 + 1)| <= M_xx * `|x1 + 1 - x1| ^+ 2.
+apply: taylor_expansion.
+- move=> k kge1 x2 x2inrange.
+  apply: f_derivable_in_x.
+  exact: kge1.
+- move=> x2 x2range.
+  apply: fxx_bound.
+  exact: t_in.
+  exact: x_in.
+  (fun k hk s _ => f_derivable_in_x (t := t) (x1 := s) hk)
+  (fun s _ => fxx_bound t s).
 rewrite taylor_linear mulr1 addrAC subrr add0r normr1 expr1n mulr1 in rem.
 move/ler_normlP: rem => [rem_lo rem_hi].
-have /ler_normlP [s_lo s_hi] := bg s.
-have /ler_normlP [s1_lo s1_hi] := bg (s + 1).
+have /ler_normlP [x_lo x_hi] := f_bound t x1.
+have /ler_normlP [next_lo next_hi] := f_bound t (x1 + 1).
+rewrite /fx /M_x.
 apply/ler_normlP.
 by split; lra.
-Qed.
-
-Local Lemma fx_bound (t x1 : R) : `|fx t x1| <= M_x.
-Proof.
-apply: (derivative_bound_of_function_second_bound (g := f t)).
-- move=> k hk s.
-  exact: (f_derivable_in_x (t := t) (x1 := s) hk).
-- exact: f_bound t.
-- exact: fxx_bound t.
-Qed.
+Qed. *)
 
 Local Lemma segment_subset_interval (I : interval R) (a b : R) :
   a \in I -> b \in I -> {subset `[minr a b, maxr a b]%R <= I}.
@@ -171,51 +179,34 @@ move=> dg bg.
 by apply: (lipschitz_of_derivative_bound_on_interval (I := `]-oo, +oo[%R)).
 Qed.
 
-Local Lemma bound_of_derivative_bound_on_interval (g : R -> R) (a b M : R) :
-  {in `[a, b]%R, forall s : R, derivable g s 1} ->
-  {in `[a, b]%R, forall s : R, `|g^`(1) s| <= M} ->
-  {in `[a, b]%R, forall s : R, `|g s| <= `|g a| + M * (b - a)}.
-Proof.
-move=> dg bg s hs.
-have range := hs.
-rewrite in_itv /= in range.
-move/andP: range => [as_ sb].
-have ha : a \in `[a, b]%R by rewrite in_itv /= lexx (le_trans as_ sb).
-have diff := lipschitz_of_derivative_bound_on_interval dg bg hs ha.
-have sa0 : 0 <= s - a by rewrite subr_ge0.
-rewrite (ger0_norm sa0) in diff.
-have M0 := le_trans (normr_ge0 _) (bg a ha).
-have width : s - a <= b - a by lra.
-have tri := ler_normD (g s - g a) (g a).
-rewrite subrK in tri.
-rewrite addrC.
-exact: le_trans tri (lerD (le_trans diff (ler_wpM2l M0 width)) (lexx _)).
-Qed.
-
-Lemma x_abs_bound : {in time_interval, forall t : R, `|x t| <= `|x0| + M_f * T}.
-Proof.
-have bx : {in time_interval, forall t : R, `|x^`(1) t| <= M_f}.
-- by move=> t ht; rewrite (x_ode ht); apply: f_bound.
-move=> t ht.
-have bound := bound_of_derivative_bound_on_interval (g := x)
-  (x_derivable (leq0n 2)) bx ht.
-by rewrite x_initial subr0 in bound.
-Qed.
-
 Local Lemma x2_bound : {in time_interval, forall t : R, `|x^`(2) t| <= M_x2}.
 Proof.
-have -> : M_x2 = `|x^`(2) 0| + M_3 * (T - 0) by rewrite /M_x2 subr0.
-apply: (bound_of_derivative_bound_on_interval (g := x^`(2))).
-- exact: (x_derivable (leqnn 2)).
-- exact: x3_bound.
+move=> t ht.
+have /andP [t0 tT] : (0 <= t) && (t <= T) by move: ht; rewrite in_itv /=.
+have h0 : 0 \in time_interval by rewrite in_itv /= lexx (le_trans t0 tT).
+have diff := lipschitz_of_derivative_bound_on_interval
+  (x_derivable (leqnn 2)) x3_bound ht h0.
+rewrite subr0 (ger0_norm t0) in diff.
+have M_3_ge0 := le_trans (normr_ge0 _) (x3_bound h0).
+have tri := ler_normD (x^`(2) t - x^`(2) 0) (x^`(2) 0).
+rewrite subrK in tri.
+rewrite /M_x2 addrC.
+exact: le_trans tri (lerD (le_trans diff (ler_wpM2l M_3_ge0 tT)) (lexx _)).
 Qed.
 
 (* Lipschitz bounds in x for fixed t. *)
 Local Lemma f_lipschitz (t x1 x2 : R) :
+  x1 \in f_x_domain -> x2 \in f_x_domain ->
   `|f t x1 - f t x2| <= M_x * `|x1 - x2|.
 Proof.
-apply: lipschitz_of_derivative_bound.
-- exact: (f_derivable_in_x (t := t) (leq0n 1)).
+move=> x1domain x2domain.
+apply: (lipschitz_of_derivative_bound_on_interval (I:= f_x_domain)).
+- move=> s sdomain.
+  apply: (@f_derivable_in_x _).
+
+exact: (f_derivable_in_x t (leq0n 1)).
+- move=> s.
+  apply: fx_bound.
 - exact: fx_bound t.
 Qed.
 
@@ -267,12 +258,6 @@ rewrite /Phi_constant.
 by nra.
 Qed.
 
-Local Lemma sqr_normr (u : R) : `|u| ^+ 2 = u ^+ 2.
-Proof.
-rewrite -normrX.
-by rewrite ger0_norm // sqr_ge0.
-Qed.
-
 (* Expand each coordinate separately, keeping the first slope fixed. *)
 Lemma rk2_stage_remainder (t x1 dt : R) :
   `|f (t + dt) (x1 + dt * f t x1) -
@@ -301,9 +286,9 @@ have bv2 : `|v| ^+ 2 <= M_f ^+ 2.
 have ex' : `|f t w - (v + fx t x1 * dx)| <=
     M_xx * M_f ^+ 2 * dt ^+ 2.
 - apply: le_trans ex _.
-  rewrite /dx normrM exprMn !sqr_normr.
+  rewrite /dx normrM exprMn !(real_normK (num_real _)).
   have hs := ler_wpM2l hxx bv2.
-  rewrite sqr_normr in hs.
+  rewrite (real_normK (num_real _)) in hs.
   move: (ler_wpM2r (sqr_ge0 dt) hs).
   by nra.
 have em' : `|(ft t w - ft t x1) * dt| <= M_tx * M_f * dt ^+ 2.
@@ -311,9 +296,9 @@ have em' : `|(ft t w - ft t x1) * dt| <= M_tx * M_f * dt ^+ 2.
   apply: le_trans (ler_wpM2r (normr_ge0 dt) em) _.
   have h := ler_wpM2l hL bv.
   move: (ler_wpM2r (sqr_ge0 `|dt|) h).
-  rewrite -[dt ^+ 2]sqr_normr.
+  rewrite -(real_normK (num_real dt)).
   by nra.
-rewrite sqr_normr in et.
+rewrite (real_normK (num_real _)) in et.
 have /ler_normlP [t_taylor_lo t_taylor_hi] :
     `|f (t + dt) w - (f t w + ft t w * dt)| <= M_tt * dt ^+ 2 := et.
 move/ler_normlP: ex' => [x_taylor_lo x_taylor_hi].
@@ -395,7 +380,10 @@ have midpoint : `|x (t + h) - (x t + h * f mid (x mid))| <= M_3 * h ^+ 3.
   move/ler_normlP: en => [en1 en2].
   have m0 := le_trans (normr_ge0 _) (x3_bound hm).
   rewrite /dt in ep1 ep2 en1 en2.
-  apply/ler_normlP.
+  Admitted.
+  (* apply/ler_normlP.
+  split.
+  nra.
   by split; nra.
 have inside := segment_subset_interval ht hm.
 have lin := taylor_expansion (f := x) (n := 1) (a := t) (x := t + dt)
@@ -426,11 +414,9 @@ rewrite /Phi -/v -/A.
 rewrite /exact_constant.
 apply/ler_normlP.
 by split; nra.
-Qed.
+Qed. *)
 
-Let local_constant :=
-  let M_Phi := `|beta| * stage_constant * p ^+ 2 in
-  exact_constant + M_Phi.
+Let local_constant := exact_constant + `|beta| * stage_constant * p ^+ 2.
 
 (* Compare Phi at the approximation x1 and the exact value x(t). *)
 Lemma rk2_error_step (t h x1 : R) : 0 <= t -> 0 < h -> t + h <= T ->
@@ -478,7 +464,7 @@ exists ((K / L) * (expR (L * T) - 1)).
 move=> h n hpos.
 pose time (i : nat) : R := i%:R * h.
 pose E (i : nat) : R := `|rk2 h i - x (time i)|.
-apply: (discrete_gronwall_order2 (E := E) (T := T) hpos Lpos K0).
+apply: (sequence.discrete_gronwall_order2 (E := E) (T := T) hpos Lpos K0).
 - rewrite /E /time mul0r /=.
   by rewrite x_initial subrr normr0.
 move=> i ti.

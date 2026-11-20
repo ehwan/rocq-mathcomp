@@ -27,7 +27,11 @@ Local Open Scope classical_set_scope.
 Section remainder.
 Context (R : realType) (f : R -> R) (n : nat) (a x : R).
 
-Local Abbreviation taylor_interval := (`[minr a x, maxr a x]%R).
+Context (taylor_interval: Interval).
+Context (a_in: a \in taylor_interval).
+Context (x_in: x \in taylor_interval).
+
+(* Local Abbreviation taylor_interval := (`[minr a x, maxr a x]%R). *)
 
 Context (F_Derivable : forall (k : nat), (k <= n)%N ->
   {in taylor_interval, forall x', derivable (derive1n k f) x' 1}
@@ -251,6 +255,8 @@ rewrite !fctE !taylor_center_sumE taylor_sum_center !subrr expr0n /=.
 by rewrite !subr0 divfK.
 Qed.
 
+(* f (x+h) = f x + h * f' x + h^2/2 f'' x + O(h^3) *)
+(* exists M, |f - ....| <= M *)
 Lemma taylor_expansion (M : R)
     (derivative_bound : {in taylor_interval, forall s : R, `|f^`(n.+1) s| <= M}) :
   `|f x - taylor_sum f n a x| <= M * `|x - a| ^+ n.+1.
