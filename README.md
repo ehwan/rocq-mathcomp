@@ -17,6 +17,8 @@ Fix a real function $f$ and an expansion center $a$. Write $f^{(i)}$ for the $i$
 | `taylor_term0`, `taylor_sum0` | $t_0[f](x)=T_0[f](x)=f(a)$ |
 | `taylor_term_centerS`, `taylor_sum_center` | At the center, $t_{n+1}[f](a)=0$ and $T_n[f](a)=f(a)$. |
 | `taylor_sumS` | $T_{n+1}[f](x)=T_n[f](x)+t_{n+1}[f](x)$ |
+| `taylor_linear` | $T_1[f](a+\delta)=f(a)+f'(a)\delta$ |
+| `taylor_quadratic` | $T_2[f](a+\delta)=f(a)+f'(a)\delta+\dfrac{f''(a)}{2}\delta^2$ |
 | `derive_taylor_term0`, `derive_taylor_sum0` | $\dfrac{d}{dx}t_0[f](x)=\dfrac{d}{dx}T_0[f](x)=0$ |
 | `derive_taylor_termS` | $\dfrac{d}{dx}t_{n+1}[f](x)=t_n[f'](x)$ |
 | `derive_taylor_sumS` | $\dfrac{d}{dx}T_{n+1}[f](x)=T_n[f'](x)$ |
@@ -43,6 +45,18 @@ $$
 
 $$
 \bigl\lvert f(x)-T_n[f](x)\bigr\rvert\le\frac{M}{(n+1)!}\lvert x-a\rvert^{n+1}.
+$$
+
+## Scalar initial value problem · [ode.v](ode.v)
+
+Fix intervals $I, D_t, D_x$ with $0 \in I \subseteq D_t$, an initial value $x_0 \in \mathbb{R}$, and a function $f$ continuous on $D_t \times D_x$.
+
+`ode_solution_exists` · Proof admitted.
+
+$$
+\exists\, x \colon \mathbb{R} \to \mathbb{R}, \qquad
+x(0) = x_0, \qquad
+\forall t \in I,\quad x(t) \in D_x \;\land\; x'(t) = f(t, x(t)).
 $$
 
 ## License

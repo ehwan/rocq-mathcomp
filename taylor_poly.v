@@ -75,6 +75,25 @@ elim: n.
   by ring.
 Qed.
 
+Lemma taylor_linear (delta : R) :
+  taylor_sum f 1 a (a + delta) = f a + f^`(1) a * delta.
+Proof.
+rewrite taylor_sumS taylor_sum0.
+rewrite /taylor_term !fctE.
+rewrite expr1 (_ : 1`! = 1%N) //.
+by field.
+Qed.
+
+Lemma taylor_quadratic (delta : R) :
+  taylor_sum f 2 a (a + delta) =
+    f a + f^`(1) a * delta + f^`(2) a * delta ^+ 2 / 2.
+Proof.
+rewrite taylor_sumS taylor_linear.
+rewrite /taylor_term !fctE.
+rewrite (_ : 2`! = 2%N) //.
+by field.
+Qed.
+
 Lemma derive_taylor_term0 (x : R) : 'D_1 t_(0) x = 0.
 Proof.
 rewrite (_ : t_(0) = cst (f a)).
